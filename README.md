@@ -1,6 +1,5 @@
 -- Serviços do Roblox
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
@@ -9,10 +8,9 @@ local candiesCollected = 0
 
 -- Interface Gráfica (GUI)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarmGui"
+ScreenGui.Name = "CandyFarmGui_v2"
 ScreenGui.ResetOnSpawn = false
 
--- Proteção simples para colocar na CoreGui ou PlayerGui
 if syn and syn.protect_gui then
     syn.protect_gui(ScreenGui)
     ScreenGui.Parent = CoreGui
@@ -30,7 +28,7 @@ Frame.Position = UDim2.new(0.4, 0, 0.3, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Frame.BorderSizePixel = 0
 Frame.Active = true
-Frame.Draggable = true -- Permite arrastar o painel
+Frame.Draggable = true
 
 -- Título
 local Title = Instance.new("TextLabel")
@@ -38,9 +36,9 @@ Title.Parent = Frame
 Title.Size = UDim2.new(1, -30, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Candy Farm"
+Title.Text = "Candy Farm + Wanderer"
 Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.TextSize = 18
+Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -77,7 +75,7 @@ StartBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StartBtn.Font = Enum.Font.SourceSansBold
 StartBtn.TextSize = 16
 
--- Botão Terminar / Parar
+-- Botão Parar
 local StopBtn = Instance.new("TextButton")
 StopBtn.Parent = Frame
 StopBtn.Size = UDim2.new(0.42, 0, 0, 35)
@@ -88,10 +86,9 @@ StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StopBtn.Font = Enum.Font.SourceSansBold
 StopBtn.TextSize = 16
 
--- Função para buscar os doces na Workspace
+-- Função para buscar os doces
 local function getCandies()
     local list = {}
-    -- Procura nos alvos especificados
     local targets = {
         workspace:FindFirstChild("HalloweenCandiesLocal"),
         workspace:FindFirstChild("CandysTemplate")
@@ -100,7 +97,6 @@ local function getCandies()
     for _, parentObj in ipairs(targets) do
         if parentObj then
             for _, item in ipairs(parentObj:GetDescendants()) do
-                -- Garante que o item possui uma parte/posição válida
                 if item:IsA("BasePart") or item:IsA("Model") then
                     table.insert(list, item)
                 end
@@ -110,7 +106,36 @@ local function getCandies()
     return list
 end
 
--- Função de Teleporte (TP a ~1m/3.5 studs de altura e queda)
+-- Função para buscar partes dentro de "barriers" para o teleporte aleatório
+local function getRandomBarrierPosition()
+    local barriersFolder = workspace:FindFirstChild("barriers", true) or workspace:FindFirstChild("Barriers", true)
+    
+    if barriersFolder then
+        local parts = {}
+        for _, child in ipairs(barriersFolder:GetDescendants()) do
+            if child:IsA("BasePart") then
+                table.insert(parts, child)
+            end
+        end
+        
+        if #parts > 0 then
+            local randomPart = parts[math.random(1, #parts)]
+            -- Retorna a posição da barreira com um pouco de altura para o personagem cair
+            return randomPart.CFrame + Vector3.new(math.random(-10, 10), 5, math.random(-10, 10))
+        end
+    end
+    
+    -- Fallback caso não ache a pasta "barriers exata", gera em volta da posição atual
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char.HumanoidRootPart.Position
+        return CFrame.new(pos + Vector3.new(math.random(-50, 50), 10, math.random(-50, 50)))
+    end
+    
+    return nil
+end
+
+-- Função de TP em cima do doce
 local function tpToCandy(candy)
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
@@ -125,13 +150,9 @@ local function tpToCandy(candy)
     end
     
     if targetCFrame then
-        -- 1 metro de altura no Roblox equivale a aproximadamente 3.5 a 4 studs de altura no eixo Y
-        local offsetCFrame = targetCFrame + Vector3.new(0, 3.5, 0)
+        -- 1 metro de altura (aprox 3.5 studs) acima do doce
+        hrp.CFrame = targetCFrame + Vector3.new(0, 3.5, 0)
         
-        -- Teleporta 1m acima
-        hrp.CFrame = offsetCFrame
-        
-        -- Garante a física/queda em cima do doce
         task.wait(0.1)
         if character:FindFirstChildOfClass("Humanoid") then
             character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Freefall)
@@ -139,7 +160,7 @@ local function tpToCandy(candy)
     end
 end
 
--- Loop Principal de Coleta
+-- Loop Principal Inteligente
 local function startFarming()
     if running then return end
     running = true
@@ -147,31 +168,37 @@ local function startFarming()
     task.spawn(function()
         while running do
             local candies = getCandies()
-            if #candies == 0 then
-                task.wait(1)
-            else
+            
+            if #candies > 0 then
+                -- Se houver doces, vai pegando um por um
                 for _, candy in ipairs(candies) do
                     if not running then break end
                     
-                    -- Verifica se o objeto ainda existe no jogo
                     if candy and candy.Parent then
                         tpToCandy(candy)
+                        task.wait(0.35)
                         
-                        -- Aguarda o tempo do toque/coleta
-                        task.wait(0.3)
-                        
-                        -- Incrementa o contador
                         candiesCollected = candiesCollected + 1
                         CounterLabel.Text = "Doces Pegos: " .. tostring(candiesCollected)
                     end
                 end
+            else
+                -- Se os doces acabaram, fica teleportando aleatório pelas barreiras para o mapa espalhar/carregar mais
+                local randomPos = getRandomBarrierPosition()
+                if randomPos then
+                    local character = LocalPlayer.Character
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        character.HumanoidRootPart.CFrame = randomPos
+                    end
+                end
+                task.wait(0.8) -- Tempo de espera entre os teles aleatórios de busca
             end
-            task.wait(0.5)
+            task.wait(0.2)
         end
     end)
 end
 
--- Conexão dos Botões
+-- Conexões
 StartBtn.MouseButton1Click:Connect(function()
     startFarming()
 end)
