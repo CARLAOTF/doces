@@ -5,13 +5,13 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local running = false
 
--- ⏱️ CONFIGURAÇÃO DE DELAY (Mantido conforme o anterior)
-local CANDY_TELEPORT_DELAY = 1.0  -- Espera de 1 segundo entre um doce e outro
-local WANDER_TELEPORT_DELAY = 2.0 -- Espera de 2 segundos entre os teleportes aleatórios nas barreiras
+-- ⏱️ CONFIGURAÇÕES
+local TERRAIN_TP_INTERVAL = 1.0  -- Intervalo de 1 segundo entre os TPs aleatórios no terreno
+local CANDY_TP_HEIGHT = 3.5      -- Altura do teleporte em cima do doce
 
 -- Interface Gráfica (GUI)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarmGui_v4"
+ScreenGui.Name = "CandyFarm_TerrainTP"
 ScreenGui.ResetOnSpawn = false
 
 if syn and syn.protect_gui then
@@ -28,7 +28,7 @@ local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
 Frame.Size = UDim2.new(0, 210, 0, 110)
 Frame.Position = UDim2.new(0.4, 0, 0.3, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Draggable = true
@@ -39,10 +39,9 @@ Title.Parent = Frame
 Title.Size = UDim2.new(1, -30, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Candy Farm"
+Title.Text = "Candy Farm (Terrain TP)"
 Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.TextSize = 16
-Title.Font = Enum.Font.SourceSansBold
+Title.TextSize, Title.Font = 12, Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
 -- Botão Fechar [X]
@@ -53,8 +52,7 @@ CloseBtn.Position = UDim2.new(1, -28, 0, 3)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.SourceSansBold
-CloseBtn.TextSize = 14
+CloseBtn.Font, CloseBtn.TextSize = Enum.Font.SourceSansBold, 14
 
 -- Botão Começar
 local StartBtn = Instance.new("TextButton")
@@ -64,8 +62,7 @@ StartBtn.Position = UDim2.new(0.06, 0, 0.45, 0)
 StartBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
 StartBtn.Text = "Começar"
 StartBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-StartBtn.Font = Enum.Font.SourceSansBold
-StartBtn.TextSize = 16
+StartBtn.Font, StartBtn.TextSize = Enum.Font.SourceSansBold, 16
 
 -- Botão Parar
 local StopBtn = Instance.new("TextButton")
@@ -75,10 +72,9 @@ StopBtn.Position = UDim2.new(0.52, 0, 0.45, 0)
 StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 StopBtn.Text = "Parar"
 StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-StopBtn.Font = Enum.Font.SourceSansBold
-StopBtn.TextSize = 16
+StopBtn.Font, StopBtn.TextSize = Enum.Font.SourceSansBold, 16
 
--- Função para buscar os doces
+-- Função para buscar os doces na Workspace
 local function getCandies()
     local list = {}
     local targets = {
@@ -98,39 +94,47 @@ local function getCandies()
     return list
 end
 
--- Função para buscar partes nas barreiras para o teleporte aleatório
-local function getRandomBarrierPosition()
-    local barriersFolder = workspace:FindFirstChild("barriers", true) or workspace:FindFirstChild("Barriers", true)
+-- Gera uma posição aleatória exata em cima do Terrain do mapa
+local function getRandomTerrainPosition()
+    local terrain = workspace:FindFirstChildOfClass("Terrain")
+    if not terrain then return nil end
     
-    if barriersFolder then
-        local parts = {}
-        for _, child in ipairs(barriersFolder:GetDescendants()) do
-            if child:IsA("BasePart") then
-                table.insert(parts, child)
-            end
-        end
+    local success, cframe, size = pcall(function()
+        return terrain:GetBoundingBox()
+    end)
+    
+    if success and cframe and size then
+        -- Sorteia coordenadas X e Z dentro dos limites do terreno do mapa
+        local rx = math.random(-size.X / 2.3, size.X / 2.3)
+        local rz = math.random(-size.Z / 2.3, size.Z / 2.3)
         
-        if #parts > 0 then
-            local randomPart = parts[math.random(1, #parts)]
-            return randomPart.CFrame + Vector3.new(math.random(-15, 15), 5, math.random(-15, 15))
+        -- Joga um raio de cima para baixo para achar a altura exata do chão
+        local origin = cframe.Position + Vector3.new(rx, size.Y / 2 + 50, rz)
+        local raycastParams = RaycastParams.new()
+        raycastParams.IgnoreWater = true
+        
+        local result = workspace:Raycast(origin, Vector3.new(0, -size.Y * 2 - 100, 0), raycastParams)
+        if result then
+            -- Retorna a posição do chão + 4 studs de altura para evitar prender no chão
+            return result.Position + Vector3.new(0, 4, 0)
         end
     end
     
+    -- Fallback caso dê algum erro nos limites do terreno
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
-        local pos = char.HumanoidRootPart.Position
-        return CFrame.new(pos + Vector3.new(math.random(-50, 50), 10, math.random(-50, 50)))
+        return char.HumanoidRootPart.Position + Vector3.new(math.random(-80, 80), 10, math.random(-80, 80))
     end
     
     return nil
 end
 
--- Função de TP em cima do doce
-local function tpToCandy(candy)
-    local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+-- Teleporta para o doce e verifica se ele sumiu
+local function collectCandy(candy)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     
-    local hrp = character.HumanoidRootPart
+    local hrp = char.HumanoidRootPart
     local targetCFrame
     
     if candy:IsA("BasePart") then
@@ -140,12 +144,20 @@ local function tpToCandy(candy)
     end
     
     if targetCFrame then
-        -- Teleporta 1m de altura (aprox 3.5 studs) acima do doce
-        hrp.CFrame = targetCFrame + Vector3.new(0, 3.5, 0)
+        hrp.CFrame = targetCFrame + Vector3.new(0, CANDY_TP_HEIGHT, 0)
         
-        task.wait(0.15)
-        if character:FindFirstChildOfClass("Humanoid") then
-            character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Freefall)
+        task.wait(0.1)
+        if char:FindFirstChildOfClass("Humanoid") then
+            char:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Freefall)
+        end
+        
+        -- Espera o doce ser coletado/desaparecer
+        local startTime = tick()
+        while running and candy and candy.Parent do
+            if tick() - startTime > 1.2 then
+                break
+            end
+            task.wait(0.1)
         end
     end
 end
@@ -160,25 +172,33 @@ local function startFarming()
             local candies = getCandies()
             
             if #candies > 0 then
+                -- Se houver doces, coleta todos um por um
                 for _, candy in ipairs(candies) do
                     if not running then break end
-                    
                     if candy and candy.Parent then
-                        tpToCandy(candy)
-                        task.wait(CANDY_TELEPORT_DELAY)
+                        collectCandy(candy)
                     end
                 end
             else
-                local randomPos = getRandomBarrierPosition()
-                if randomPos then
-                    local character = LocalPlayer.Character
-                    if character and character:FindFirstChild("HumanoidRootPart") then
-                        character.HumanoidRootPart.CFrame = randomPos
-                    end
+                -- Se não houver doces, dá TP aleatório no terreno do mapa
+                local terrainPos = getRandomTerrainPosition()
+                local char = LocalPlayer.Character
+                
+                if terrainPos and char and char:FindFirstChild("HumanoidRootPart") then
+                    char.HumanoidRootPart.CFrame = CFrame.new(terrainPos)
                 end
-                task.wait(WANDER_TELEPORT_DELAY)
+                
+                -- Aguarda o intervalo de 1 segundo checando constantemente se doces aparecem
+                local timer = 0
+                while running and timer < TERRAIN_TP_INTERVAL do
+                    if #getCandies() > 0 then
+                        break
+                    end
+                    task.wait(0.1)
+                    timer = timer + 0.1
+                end
             end
-            task.wait(0.2)
+            task.wait(0.1)
         end
     end)
 end
