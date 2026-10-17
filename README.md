@@ -1,25 +1,8 @@
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MarketplaceService = game:GetService("MarketplaceService")
 
 local LocalPlayer = Players.LocalPlayer
-local GAMEPASS_ID = 1823236629
-
-local function checkGamepass()
-    local success, hasPass = pcall(function()
-        return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, GAMEPASS_ID)
-    end)
-    return success and hasPass
-end
-
-if not checkGamepass() then
-    pcall(function()
-        MarketplaceService:PromptGamePassPurchase(LocalPlayer, GAMEPASS_ID)
-    end)
-    return
-end
-
 local running = false
 local lastPosition = nil
 local candiesCollected = 0
@@ -36,16 +19,23 @@ pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
 
+-- Interface Gráfica com carregamento seguro para PC
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarm_Carlao"
 ScreenGui.ResetOnSpawn = false
 
-if syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-    ScreenGui.Parent = CoreGui
-elseif gethui then
-    ScreenGui.Parent = gethui()
-else
+local successParent = pcall(function()
+    if gethui then
+        ScreenGui.Parent = gethui()
+    elseif syn and syn.protect_gui then
+        syn.protect_gui(ScreenGui)
+        ScreenGui.Parent = CoreGui
+    else
+        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end
+end)
+
+if not successParent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
@@ -193,11 +183,9 @@ end
 
 local function getCandyIdentifier(candy)
     if not candy then return nil end
-    
     if candy:GetAttribute("CandyId") then return candy:GetAttribute("CandyId") end
     if candy:FindFirstChild("CandyId") then return candy.CandyId.Value end
     if candy:FindFirstChild("ID") then return candy.ID.Value end
-    
     return candy.Name
 end
 
@@ -328,7 +316,7 @@ StopBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-CloseBtn.MouseButton1Click:Connect(function()
+CloseBtn.MouseButton1Click:Connect(function$()
     running = false
     local camera = workspace.CurrentCamera
     if camera then
