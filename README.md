@@ -1,8 +1,61 @@
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
+local env = (getgenv and getgenv()) or _G
+
+-- =========================================================================
+--  SISTEMA ANTI-AFK (ATIVADO AUTOMATICAMENTE - PC E MOBILE)
+-- =========================================================================
+
+if not env.AntiAFK_Loaded then
+    env.AntiAFK_Loaded = true
+
+    local function antiAfkPulse()
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Unknown, false, game)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Unknown, false, game)
+        end)
+        
+        pcall(function()
+            local position = UserInputService:GetMouseLocation()
+            VirtualInputManager:SendMouseMoveEvent(position.X, position.Y, game)
+        end)
+
+        local fire = env.firesignal or env.fireSignal
+        if type(fire) == "function" then
+            pcall(fire, UserInputService.WindowFocused)
+        end
+    end
+
+    -- Prevenção via Idled (Desconexão do Roblox por 20min)
+    pcall(function()
+        LocalPlayer.Idled:Connect(function()
+            antiAfkPulse()
+            pcall(function()
+                local VirtualUser = game:GetService("VirtualUser")
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0, 0))
+            end)
+        end)
+    end)
+
+    -- Pulso contínuo a cada 60 segundos (Garante estabilidade em Mobile e PC)
+    task.spawn(function()
+        while true do
+            task.wait(60)
+            antiAfkPulse()
+        end
+    end)
+end
+
+-- =========================================================================
+--  CONFIGURAÇÕES E VARIÁVEIS DO FARM
+-- =========================================================================
+
 local running = false
 local lastPosition = nil
 local candiesCollected = 0
@@ -18,6 +71,10 @@ local pickupRemote = nil
 pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
+
+-- =========================================================================
+--  INTERFACE GRÁFICA (GUI)
+-- =========================================================================
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarm_Carlao"
@@ -113,6 +170,10 @@ StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 StopBtn.Text = "Parar"
 StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StopBtn.Font, StopBtn.TextSize = Enum.Font.SourceSansBold, 16
+
+-- =========================================================================
+--  LÓGICA DE TELEPORTE E COLETA
+-- =========================================================================
 
 local function getCandies()
     local list = {}
