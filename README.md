@@ -1,8 +1,26 @@
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local LocalPlayer = Players.LocalPlayer
+local GAMEPASS_ID = 1823236629
+
+local function checkGamepass()
+    local hasPass = false
+    pcall(function()
+        hasPass = MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, GAMEPASS_ID)
+    end)
+    return hasPass
+end
+
+if not checkGamepass() then
+    pcall(function()
+        MarketplaceService:PromptGamePassPurchase(LocalPlayer, GAMEPASS_ID)
+    end)
+    return
+end
+
 local running = false
 local lastPosition = nil
 local candiesCollected = 0
@@ -23,20 +41,9 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarm_Carlao"
 ScreenGui.ResetOnSpawn = false
 
-local successParent = pcall(function()
-    if gethui then
-        ScreenGui.Parent = gethui()
-    elseif syn and syn.protect_gui then
-        syn.protect_gui(ScreenGui)
-        ScreenGui.Parent = CoreGui
-    else
-        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    end
-end)
-
-if not successParent then
+pcall(function()
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
+end)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
@@ -323,4 +330,3 @@ CloseBtn.MouseButton1Click:Connect(function()
     end
     ScreenGui:Destroy()
 end)
-
