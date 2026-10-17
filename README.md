@@ -19,7 +19,6 @@ pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
 
--- Interface Gráfica com carregamento seguro para PC
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarm_Carlao"
 ScreenGui.ResetOnSpawn = false
@@ -316,7 +315,7 @@ StopBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-CloseBtn.MouseButton1Click:Connect(function$()
+CloseBtn.MouseButton1Click:Connect(function()
     running = false
     local camera = workspace.CurrentCamera
     if camera then
@@ -324,4 +323,3 @@ CloseBtn.MouseButton1Click:Connect(function$()
     end
     ScreenGui:Destroy()
 end)
-
