@@ -6,20 +6,24 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer = Players.LocalPlayer
 local GAMEPASS_ID = 1823236629
 
-local function checkGamepass()
-    local hasPass = false
+-- Função de parentamento universal para prevenir crash em executores de PC
+local function getSafeParent()
+    local parent = nil
     pcall(function()
-        hasPass = MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, GAMEPASS_ID)
+        if gethui then
+            parent = gethui()
+        elseif syn and syn.protect_gui then
+            parent = CoreGui
+        else
+            parent = LocalPlayer:WaitForChild("PlayerGui", 5)
+        end
     end)
-    return hasPass
+    return parent or LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
 end
 
-if not checkGamepass() then
-    pcall(function()
-        MarketplaceService:PromptGamePassPurchase(LocalPlayer, GAMEPASS_ID)
-    end)
-    return
-end
+-- =========================================================================
+--  ESTRUTURA DA INTERFACE PRINCIPAL DO FARM
+-- =========================================================================
 
 local running = false
 local lastPosition = nil
@@ -37,16 +41,13 @@ pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarm_Carlao"
-ScreenGui.ResetOnSpawn = false
-
-pcall(function()
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end)
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "CandyFarm_Carlao"
+MainGui.ResetOnSpawn = false
+MainGui.Enabled = false -- Mantém oculto até validar a Game Pass
 
 local Frame = Instance.new("Frame")
-Frame.Parent = ScreenGui
+Frame.Parent = MainGui
 Frame.Size = UDim2.new(0, 230, 0, 160)
 Frame.Position = UDim2.new(0.4, 0, 0.3, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
@@ -120,6 +121,95 @@ StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 StopBtn.Text = "Parar"
 StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StopBtn.Font, StopBtn.TextSize = Enum.Font.SourceSansBold, 16
+
+MainGui.Parent = getSafeParent()
+
+-- =========================================================================
+--  TELA DE BLOQUEIO DA GAME PASS
+-- =========================================================================
+
+local LockGui = Instance.new("ScreenGui")
+LockGui.Name = "CandyFarm_LockScreen"
+LockGui.ResetOnSpawn = false
+LockGui.Enabled = false
+
+local LockFrame = Instance.new("Frame")
+LockFrame.Parent = LockGui
+LockFrame.Size = UDim2.new(0, 260, 0, 140)
+LockFrame.Position = UDim2.new(0.5, -130, 0.4, -70)
+LockFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+LockFrame.BorderSizePixel = 0
+LockFrame.Active = true
+LockFrame.Draggable = true
+
+local LockTitle = Instance.new("TextLabel")
+LockTitle.Parent = LockFrame
+LockTitle.Size = UDim2.new(1, -20, 0, 30)
+LockTitle.Position = UDim2.new(0, 10, 0, 10)
+LockTitle.BackgroundTransparency = 1
+LockTitle.Text = "Candy Farm | Carlao"
+LockTitle.TextColor3 = Color3.fromRGB(255, 170, 0)
+LockTitle.TextSize, LockTitle.Font = 14, Enum.Font.SourceSansBold
+
+local LockNotice = Instance.new("TextLabel")
+LockNotice.Parent = LockFrame
+LockNotice.Size = UDim2.new(1, -20, 0, 20)
+LockNotice.Position = UDim2.new(0, 10, 0, 38)
+LockNotice.BackgroundTransparency = 1
+LockNotice.Text = "Verificando Game Pass..."
+LockNotice.TextColor3 = Color3.fromRGB(200, 200, 200)
+LockNotice.TextSize, LockNotice.Font = 11, Enum.Font.SourceSans
+
+local BuyBtn = Instance.new("TextButton")
+BuyBtn.Parent = LockFrame
+BuyBtn.Size = UDim2.new(0.9, 0, 0, 40)
+BuyBtn.Position = UDim2.new(0.05, 0, 0.6, 0)
+BuyBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 232)
+BuyBtn.Text = "Comprar Game Pass para desbloquear"
+BuyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BuyBtn.TextWrapped = true
+BuyBtn.Font, BuyBtn.TextSize = Enum.Font.SourceSansBold, 12
+
+local CloseLockBtn = Instance.new("TextButton")
+CloseLockBtn.Parent = LockFrame
+CloseLockBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseLockBtn.Position = UDim2.new(1, -28, 0, 3)
+CloseLockBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseLockBtn.Text = "X"
+CloseLockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseLockBtn.Font, CloseLockBtn.TextSize = Enum.Font.SourceSansBold, 14
+
+LockGui.Parent = getSafeParent()
+
+CloseLockBtn.MouseButton1Click:Connect(function()
+    LockGui:Destroy()
+end)
+
+BuyBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        MarketplaceService:PromptGamePassPurchase(LocalPlayer, GAMEPASS_ID)
+    end)
+end)
+
+-- Verificação em segundo plano sem travar o script
+task.spawn(function()
+    local hasPass = false
+    local success = pcall(function()
+        hasPass = MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, GAMEPASS_ID)
+    end)
+
+    if success and hasPass then
+        MainGui.Enabled = true
+        LockGui:Destroy()
+    else
+        LockNotice.Text = "Acesso bloqueado: Game Pass necessaria!"
+        LockGui.Enabled = true
+    end
+end)
+
+-- =========================================================================
+--  LÓGICA DE COLETA E MODO PARADO COM CÂMERA
+-- =========================================================================
 
 local function getCandies()
     local list = {}
@@ -328,5 +418,5 @@ CloseBtn.MouseButton1Click:Connect(function()
     if camera then
         camera.CameraType = Enum.CameraType.Custom
     end
-    ScreenGui:Destroy()
+    MainGui:Destroy()
 end)
