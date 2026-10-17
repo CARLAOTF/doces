@@ -1,15 +1,11 @@
--- Serviços do Roblox
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
 
 local LocalPlayer = Players.LocalPlayer
+local GAMEPASS_ID = 1823236629
 
--- 🆔 ID DA SUA GAME PASS CONFIGURADO
-local GAMEPASS_ID = 1823236629  
-
--- Função para verificar se o jogador possui a Game Pass
 local function checkGamepass()
     local success, hasPass = pcall(function()
         return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, GAMEPASS_ID)
@@ -17,38 +13,29 @@ local function checkGamepass()
     return success and hasPass
 end
 
--- Se o jogador NÃO tiver a Game Pass, abre o menu de compra e bloqueia o script
 if not checkGamepass() then
     pcall(function()
         MarketplaceService:PromptGamePassPurchase(LocalPlayer, GAMEPASS_ID)
     end)
-    warn("[Candy Farm] Acesso negado: Você precisa comprar a Game Pass para usar este script!")
-    return -- Para a execução aqui se não tiver a pass
+    return
 end
-
--- =========================================================================
---  SCRIPT PRINCIPAL (SÓ RODA SE TIVER A GAME PASS)
--- =========================================================================
 
 local running = false
 local lastPosition = nil
-local candiesCollected = 0  -- Mantém salvo o histórico acumulado
-local isExploreMode = true  -- true = Explorar Mapa | false = Parado
+local candiesCollected = 0
+local isExploreMode = true
 
--- ⏱️ CONFIGURAÇÕES
-local TERRAIN_TP_INTERVAL = 1.0  -- Intervalo de 1 segundo entre os TPs aleatórios
-local TERRAIN_SAFE_HEIGHT = 40   -- Altura segura acima do chão firme
-local MIN_DIST_BETWEEN_TPS = 120 -- Distância mínima para teletransportar longe
-local CANDY_TP_HEIGHT = 3.5      -- Altura precisa para pegar os doces
-local CANDY_WAIT_TIME = 0.5      -- Tempo exato de espera no doce (0.5s)
+local TERRAIN_TP_INTERVAL = 1.0
+local TERRAIN_SAFE_HEIGHT = 40
+local MIN_DIST_BETWEEN_TPS = 120
+local CANDY_TP_HEIGHT = 3.5
+local CANDY_WAIT_TIME = 0.5
 
--- Remote de Coleta
 local pickupRemote = nil
 pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
 
--- Interface Gráfica (GUI)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarm_Carlao"
 ScreenGui.ResetOnSpawn = false
@@ -62,7 +49,6 @@ else
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Frame Principal
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
 Frame.Size = UDim2.new(0, 230, 0, 160)
@@ -72,18 +58,16 @@ Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Draggable = true
 
--- Título
 local Title = Instance.new("TextLabel")
 Title.Parent = Frame
 Title.Size = UDim2.new(1, -20, 0, 25)
 Title.Position = UDim2.new(0, 10, 0, 5)
 Title.BackgroundTransparency = 1
-Title.Text = "Candy Farm | Carlão"
+Title.Text = "Candy Farm | Carlao"
 Title.TextColor3 = Color3.fromRGB(255, 170, 0)
 Title.TextSize, Title.Font = 13, Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
--- Contador de Doces
 local CounterLabel = Instance.new("TextLabel")
 CounterLabel.Parent = Frame
 CounterLabel.Size = UDim2.new(1, -20, 0, 20)
@@ -94,7 +78,6 @@ CounterLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 CounterLabel.TextSize, CounterLabel.Font = 12, Enum.Font.SourceSans
 CounterLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- Botão de Alternar Modo
 local ModeBtn = Instance.new("TextButton")
 ModeBtn.Parent = Frame
 ModeBtn.Size = UDim2.new(1, -20, 0, 28)
@@ -115,7 +98,6 @@ ModeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Botão Fechar [X]
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = Frame
 CloseBtn.Size = UDim2.new(0, 25, 0, 25)
@@ -125,17 +107,15 @@ CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.Font, CloseBtn.TextSize = Enum.Font.SourceSansBold, 14
 
--- Botão Começar
 local StartBtn = Instance.new("TextButton")
 StartBtn.Parent = Frame
 StartBtn.Size = UDim2.new(0.42, 0, 0, 38)
 StartBtn.Position = UDim2.new(0.06, 0, 0.68, 0)
 StartBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
-StartBtn.Text = "Começar"
+StartBtn.Text = "Comecar"
 StartBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StartBtn.Font, StartBtn.TextSize = Enum.Font.SourceSansBold, 16
 
--- Botão Parar
 local StopBtn = Instance.new("TextButton")
 StopBtn.Parent = Frame
 StopBtn.Size = UDim2.new(0.42, 0, 0, 38)
@@ -145,7 +125,6 @@ StopBtn.Text = "Parar"
 StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StopBtn.Font, StopBtn.TextSize = Enum.Font.SourceSansBold, 16
 
--- Busca os doces na Workspace
 local function getCandies()
     local list = {}
     local targets = {
@@ -165,7 +144,6 @@ local function getCandies()
     return list
 end
 
--- Posição aleatória e segura no Terrain
 local function getValidMapPosition()
     local terrain = workspace:FindFirstChildOfClass("Terrain")
     if not terrain then return nil end
@@ -213,7 +191,6 @@ local function getValidMapPosition()
     return nil
 end
 
--- Extrai o ID ou parâmetro correto do doce
 local function getCandyIdentifier(candy)
     if not candy then return nil end
     
@@ -224,7 +201,6 @@ local function getCandyIdentifier(candy)
     return candy.Name
 end
 
--- Valida se a resposta do servidor confirma o sucesso da coleta
 local function isColectSuccessful(response)
     if type(response) == "table" then
         if response.ok == true then return true end
@@ -235,7 +211,6 @@ local function isColectSuccessful(response)
     return false
 end
 
--- Teleporta para o doce, dispara o Remote correto e valida a coleta
 local function collectCandy(candy)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -250,13 +225,11 @@ local function collectCandy(candy)
     end
     
     if targetCFrame then
-        -- Teleporta para o doce
         hrp.CFrame = targetCFrame + Vector3.new(0, CANDY_TP_HEIGHT, 0)
         
         local candyId = getCandyIdentifier(candy)
         local collectedSuccess = false
         
-        -- Invoca o Remote no servidor com o ID dinâmico
         if pickupRemote and candyId then
             pcall(function()
                 local res1 = pickupRemote:InvokeServer(candyId)
@@ -271,10 +244,8 @@ local function collectCandy(candy)
             end)
         end
         
-        -- Aguarda o tempo necessário no doce
         task.wait(CANDY_WAIT_TIME)
         
-        -- Fallback: Se o Remote funcionou ou se o doce sumiu do jogo, confirma a coleta
         if collectedSuccess or not (candy and candy.Parent) then
             candiesCollected = candiesCollected + 1
             CounterLabel.Text = "Doces Coletados: " .. candiesCollected
@@ -282,7 +253,6 @@ local function collectCandy(candy)
     end
 end
 
--- Loop Principal
 local function startFarming()
     if running then return end
     running = true
@@ -296,17 +266,14 @@ local function startFarming()
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local camera = workspace.CurrentCamera
                 
-                -- Checkpoint do local exato antes de ir buscar o doce
                 local checkpointCFrame = hrp and hrp.CFrame
                 local originalCamCFrame = camera and camera.CFrame
                 
-                -- Se estiver no modo parado, trava a câmera no lugar fixo
                 if not isExploreMode and camera and originalCamCFrame then
                     camera.CameraType = Enum.CameraType.Scriptable
                     camera.CFrame = originalCamCFrame
                 end
                 
-                -- Coleta os doces
                 for _, candy in ipairs(candies) do
                     if not running then break end
                     if candy and candy.Parent then
@@ -314,18 +281,15 @@ local function startFarming()
                     end
                 end
                 
-                -- Volta exatamente para o checkpoint
                 if checkpointCFrame and hrp and running then
                     hrp.CFrame = checkpointCFrame
                     task.wait(0.1)
                 end
                 
-                -- Restaura a câmera normal após retornar ao corpo
                 if camera then
                     camera.CameraType = Enum.CameraType.Custom
                 end
             else
-                -- Sem doces
                 if isExploreMode then
                     local safePos = getValidMapPosition()
                     local char = LocalPlayer.Character
@@ -352,14 +316,12 @@ local function startFarming()
     end)
 end
 
--- Conexões dos Botões
 StartBtn.MouseButton1Click:Connect(function()
     startFarming()
 end)
 
 StopBtn.MouseButton1Click:Connect(function()
     running = false
-    -- Restaura a câmera se o script for parado no meio de uma coleta
     local camera = workspace.CurrentCamera
     if camera then
         camera.CameraType = Enum.CameraType.Custom
