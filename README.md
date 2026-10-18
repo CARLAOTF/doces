@@ -7,10 +7,6 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local env = (getgenv and getgenv()) or _G
 
--- =========================================================================
---  SISTEMA ANTI-AFK (ATIVADO AUTOMATICAMENTE - PC E MOBILE)
--- =========================================================================
-
 if not env.AntiAFK_Loaded then
     env.AntiAFK_Loaded = true
 
@@ -31,7 +27,6 @@ if not env.AntiAFK_Loaded then
         end
     end
 
-    -- Prevenção via Idled (Desconexão do Roblox por 20min)
     pcall(function()
         LocalPlayer.Idled:Connect(function()
             antiAfkPulse()
@@ -43,7 +38,6 @@ if not env.AntiAFK_Loaded then
         end)
     end)
 
-    -- Pulso contínuo a cada 60 segundos (Garante estabilidade em Mobile e PC)
     task.spawn(function()
         while true do
             task.wait(60)
@@ -52,128 +46,231 @@ if not env.AntiAFK_Loaded then
     end)
 end
 
--- =========================================================================
---  CONFIGURAÇÕES E VARIÁVEIS DO FARM
--- =========================================================================
+local locations = {
+	Vector3.new(-241.42, 2.44, 669.50),
+	Vector3.new(-420.68, 19.17, 270.95),
+	Vector3.new(-171.58, 2.77, -261.09),
+	Vector3.new(-380.24, 5.95, -414.02),
+	Vector3.new(347.10, 23.21, -377.64),
+	Vector3.new(609.80, 2.28, 10.63),
+	Vector3.new(420.49, 30.71, 196.22),
+	Vector3.new(302.75, 13.96, 575.04),
+	Vector3.new(224.29, 4.44, 1034.41),
+	Vector3.new(11.99, 2.40, 834.86),
+	Vector3.new(-84.31, 5.34, 687.68),
+	Vector3.new(-114.36, 23.64, 568.91),
+	Vector3.new(-21.33, 11.65, 305.46),
+	Vector3.new(101.01, 4.27, 185.55),
+	Vector3.new(266.05, 29.58, 246.06),
+	Vector3.new(333.54, 29.13, 401.32),
+	Vector3.new(113.40, 26.55, 75.11),
+	Vector3.new(23.84, 13.19, -151.98),
+	Vector3.new(-32.49, 53.84, -110.31),
+	Vector3.new(-436.67, 17.89, 113.28),
+	Vector3.new(-697.01, 8.01, -29.37),
+	Vector3.new(-596.79, 6.04, -330.12),
+	Vector3.new(-690.92, 24.55, 468.41),
+	Vector3.new(-388.16, 5.85, 1023.50),
+	Vector3.new(-121.28, 15.16, 1039.57),
+	Vector3.new(88.14, 6.49, 1017.44),
+	Vector3.new(100.07, 2.70, 815.04),
+}
 
 local running = false
-local lastPosition = nil
 local candiesCollected = 0
-local isExploreMode = true
-
-local TERRAIN_TP_INTERVAL = 1.0
-local TERRAIN_SAFE_HEIGHT = 40
-local MIN_DIST_BETWEEN_TPS = 120
-local CANDY_TP_HEIGHT = 3.5
-local CANDY_WAIT_TIME = 0.5
+local candyWaitTime = 0.5
+local mapTpWaitTime = 1.0
+local currentLocationIndex = 1
 
 local pickupRemote = nil
 pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
 
--- =========================================================================
---  INTERFACE GRÁFICA (GUI)
--- =========================================================================
-
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarm_Carlao"
 ScreenGui.ResetOnSpawn = false
 
-local successParent = pcall(function()
-    if gethui then
-        ScreenGui.Parent = gethui()
-    elseif syn and syn.protect_gui then
-        syn.protect_gui(ScreenGui)
-        ScreenGui.Parent = CoreGui
-    else
-        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local function setParent(gui)
+    pcall(function()
+        if gethui then
+            gui.Parent = gethui()
+        elseif syn and syn.protect_gui then
+            syn.protect_gui(gui)
+            gui.Parent = CoreGui
+        else
+            gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+        end
+    end)
+    if not gui.Parent then
+        gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
-end)
-
-if not successParent then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
+setParent(ScreenGui)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 230, 0, 160)
-Frame.Position = UDim2.new(0.4, 0, 0.3, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Frame.Size = UDim2.new(0, 260, 0, 215)
+Frame.Position = UDim2.new(0.5, -130, 0.4, -107)
+Frame.BackgroundColor3 = Color3.fromRGB(22, 14, 32)
 Frame.BorderSizePixel = 0
 Frame.Active = true
 Frame.Draggable = true
 
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 10)
+FrameCorner.Parent = Frame
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Parent = Frame
+FrameStroke.Color = Color3.fromRGB(255, 120, 0)
+FrameStroke.Thickness = 1.5
+
+local TopBar = Instance.new("Frame")
+TopBar.Parent = Frame
+TopBar.Size = UDim2.new(1, 0, 0, 32)
+TopBar.BackgroundColor3 = Color3.fromRGB(15, 8, 22)
+TopBar.BorderSizePixel = 0
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
 local Title = Instance.new("TextLabel")
-Title.Parent = Frame
-Title.Size = UDim2.new(1, -20, 0, 25)
-Title.Position = UDim2.new(0, 10, 0, 5)
+Title.Parent = TopBar
+Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Candy Farm | Carlao"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.TextSize, Title.Font = 13, Enum.Font.SourceSansBold
+Title.Text = "🎃 Farm Candy Carlão 🎃"
+Title.TextColor3 = Color3.fromRGB(255, 140, 0)
+Title.TextSize = 13
+Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
-local CounterLabel = Instance.new("TextLabel")
-CounterLabel.Parent = Frame
-CounterLabel.Size = UDim2.new(1, -20, 0, 20)
-CounterLabel.Position = UDim2.new(0, 10, 0, 28)
-CounterLabel.BackgroundTransparency = 1
-CounterLabel.Text = "Doces Coletados: " .. candiesCollected
-CounterLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-CounterLabel.TextSize, CounterLabel.Font = 12, Enum.Font.SourceSans
-CounterLabel.TextXAlignment = Enum.TextXAlignment.Left
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = TopBar
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Position = UDim2.new(1, -27, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 14
 
-local ModeBtn = Instance.new("TextButton")
-ModeBtn.Parent = Frame
-ModeBtn.Size = UDim2.new(1, -20, 0, 28)
-ModeBtn.Position = UDim2.new(0, 10, 0, 52)
-ModeBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
-ModeBtn.Text = "Modo: Explorar Mapa"
-ModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ModeBtn.Font, ModeBtn.TextSize = Enum.Font.SourceSansBold, 12
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseBtn
 
-ModeBtn.MouseButton1Click:Connect(function()
-    isExploreMode = not isExploreMode
-    if isExploreMode then
-        ModeBtn.Text = "Modo: Explorar Mapa"
-        ModeBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
+local CounterFrame = Instance.new("Frame")
+CounterFrame.Parent = Frame
+CounterFrame.Size = UDim2.new(0.9, 0, 0, 28)
+CounterFrame.Position = UDim2.new(0.05, 0, 0.19, 0)
+CounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
+CounterFrame.BorderSizePixel = 0
+
+local CounterCorner = Instance.new("UICorner")
+CounterCorner.CornerRadius = UDim.new(0, 6)
+CounterCorner.Parent = CounterFrame
+
+local CounterText = Instance.new("TextLabel")
+CounterText.Parent = CounterFrame
+CounterText.Size = UDim2.new(1, 0, 1, 0)
+CounterText.BackgroundTransparency = 1
+CounterText.Text = "🍬 Doces Coletados: 0"
+CounterText.TextColor3 = Color3.fromRGB(255, 200, 50)
+CounterText.TextSize = 12
+CounterText.Font = Enum.Font.GothamBold
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = Frame
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 32)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0.35, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
+ToggleBtn.Text = "AUTO FARM: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 12
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleBtn
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Parent = ToggleBtn
+ToggleStroke.Color = Color3.fromRGB(130, 60, 180)
+ToggleStroke.Thickness = 1
+
+local function createInputGroup(parent, pos, labelText, defaultVal)
+    local container = Instance.new("Frame")
+    container.Parent = parent
+    container.Size = UDim2.new(0.42, 0, 0, 45)
+    container.Position = pos
+    container.BackgroundTransparency = 1
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Parent = container
+    lbl.Size = UDim2.new(1, 0, 0, 15)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = labelText
+    lbl.TextColor3 = Color3.fromRGB(180, 160, 200)
+    lbl.TextSize = 10
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+
+    local box = Instance.new("TextBox")
+    box.Parent = container
+    box.Size = UDim2.new(1, 0, 0, 28)
+    box.Position = UDim2.new(0, 0, 0, 17)
+    box.BackgroundColor3 = Color3.fromRGB(30, 18, 42)
+    box.Text = tostring(defaultVal)
+    box.TextColor3 = Color3.fromRGB(255, 140, 0)
+    box.Font = Enum.Font.GothamBold
+    box.TextSize = 12
+    box.ClearTextOnFocus = false
+
+    local boxCorner = Instance.new("UICorner")
+    boxCorner.CornerRadius = UDim.new(0, 6)
+    boxCorner.Parent = box
+
+    local boxStroke = Instance.new("UIStroke")
+    boxStroke.Parent = box
+    boxStroke.Color = Color3.fromRGB(100, 45, 140)
+    boxStroke.Thickness = 1
+
+    return box
+end
+
+local CandyDelayBox = createInputGroup(Frame, UDim2.new(0.05, 0, 0.53, 0), "Delay Doce (s)", candyWaitTime)
+local MapDelayBox = createInputGroup(Frame, UDim2.new(0.53, 0, 0.53, 0), "Delay Mapa (s)", mapTpWaitTime)
+
+CandyDelayBox.FocusLost:Connect(function()
+    local num = tonumber(CandyDelayBox.Text)
+    if num and num >= 0 then
+        candyWaitTime = num
     else
-        ModeBtn.Text = "Modo: Parado (Esperar Doces)"
-        ModeBtn.BackgroundColor3 = Color3.fromRGB(120, 50, 150)
+        CandyDelayBox.Text = tostring(candyWaitTime)
     end
 end)
 
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Parent = Frame
-CloseBtn.Size = UDim2.new(0, 25, 0, 25)
-CloseBtn.Position = UDim2.new(1, -28, 0, 3)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font, CloseBtn.TextSize = Enum.Font.SourceSansBold, 14
+MapDelayBox.FocusLost:Connect(function()
+    local num = tonumber(MapDelayBox.Text)
+    if num and num >= 0 then
+        mapTpWaitTime = num
+    else
+        MapDelayBox.Text = tostring(mapTpWaitTime)
+    end
+end)
 
-local StartBtn = Instance.new("TextButton")
-StartBtn.Parent = Frame
-StartBtn.Size = UDim2.new(0.42, 0, 0, 38)
-StartBtn.Position = UDim2.new(0.06, 0, 0.68, 0)
-StartBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
-StartBtn.Text = "Comecar"
-StartBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-StartBtn.Font, StartBtn.TextSize = Enum.Font.SourceSansBold, 16
-
-local StopBtn = Instance.new("TextButton")
-StopBtn.Parent = Frame
-StopBtn.Size = UDim2.new(0.42, 0, 0, 38)
-StopBtn.Position = UDim2.new(0.52, 0, 0.68, 0)
-StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-StopBtn.Text = "Parar"
-StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-StopBtn.Font, StopBtn.TextSize = Enum.Font.SourceSansBold, 16
-
--- =========================================================================
---  LÓGICA DE TELEPORTE E COLETA
--- =========================================================================
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = Frame
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 20)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.86, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: Parado"
+StatusLabel.TextColor3 = Color3.fromRGB(160, 140, 180)
+StatusLabel.TextSize = 10
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local function getCandies()
     local list = {}
@@ -192,53 +289,6 @@ local function getCandies()
         end
     end
     return list
-end
-
-local function getValidMapPosition()
-    local terrain = workspace:FindFirstChildOfClass("Terrain")
-    if not terrain then return nil end
-    
-    local success, cframe, size = pcall(function()
-        return terrain:GetBoundingBox()
-    end)
-    
-    if success and cframe and size then
-        for _ = 1, 15 do
-            local rx = math.random(-size.X * 0.35, size.X * 0.35)
-            local rz = math.random(-size.Z * 0.35, size.Z * 0.35)
-            
-            local origin = cframe.Position + Vector3.new(rx, size.Y / 2 + 100, rz)
-            local raycastParams = RaycastParams.new()
-            raycastParams.IgnoreWater = true
-            
-            local result = workspace:Raycast(origin, Vector3.new(0, -size.Y * 2 - 200, 0), raycastParams)
-            
-            if result and result.Instance then
-                local candidatePos = result.Position + Vector3.new(0, TERRAIN_SAFE_HEIGHT, 0)
-                
-                if not lastPosition or (candidatePos - lastPosition).Magnitude >= MIN_DIST_BETWEEN_TPS then
-                    return candidatePos
-                end
-            end
-        end
-    end
-    
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local angle = math.rad(math.random(0, 360))
-        local dist = math.random(80, 150)
-        local offset = Vector3.new(math.cos(angle) * dist, 100, math.sin(angle) * dist)
-        local origin = char.HumanoidRootPart.Position + offset
-        
-        local raycastParams = RaycastParams.new()
-        raycastParams.IgnoreWater = true
-        local result = workspace:Raycast(origin, Vector3.new(0, -300, 0), raycastParams)
-        if result then
-            return result.Position + Vector3.new(0, TERRAIN_SAFE_HEIGHT, 0)
-        end
-    end
-    
-    return nil
 end
 
 local function getCandyIdentifier(candy)
@@ -273,7 +323,8 @@ local function collectCandy(candy)
     end
     
     if targetCFrame then
-        hrp.CFrame = targetCFrame + Vector3.new(0, CANDY_TP_HEIGHT, 0)
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.CFrame = targetCFrame + Vector3.new(0, 0.2, 0)
         
         local candyId = getCandyIdentifier(candy)
         local collectedSuccess = false
@@ -292,95 +343,85 @@ local function collectCandy(candy)
             end)
         end
         
-        task.wait(CANDY_WAIT_TIME)
+        if not collectedSuccess and candy and candy.Parent then
+            hrp.CFrame = targetCFrame
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            task.wait(0.1)
+            if pickupRemote and candyId then
+                pcall(function()
+                    local resRetry = pickupRemote:InvokeServer(candyId)
+                    if isColectSuccessful(resRetry) then
+                        collectedSuccess = true
+                    end
+                end)
+            end
+        end
+        
+        task.wait(candyWaitTime)
         
         if collectedSuccess or not (candy and candy.Parent) then
             candiesCollected = candiesCollected + 1
-            CounterLabel.Text = "Doces Coletados: " .. candiesCollected
+            CounterText.Text = "🍬 Doces Coletados: " .. candiesCollected
         end
     end
 end
 
 local function startFarming()
-    if running then return end
-    running = true
-    
     task.spawn(function()
         while running do
             local candies = getCandies()
             
             if #candies > 0 then
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local camera = workspace.CurrentCamera
-                
-                local checkpointCFrame = hrp and hrp.CFrame
-                local originalCamCFrame = camera and camera.CFrame
-                
-                if not isExploreMode and camera and originalCamCFrame then
-                    camera.CameraType = Enum.CameraType.Scriptable
-                    camera.CFrame = originalCamCFrame
-                end
-                
+                StatusLabel.Text = "Status: Coletando Doces (" .. #candies .. ")"
                 for _, candy in ipairs(candies) do
                     if not running then break end
                     if candy and candy.Parent then
                         collectCandy(candy)
                     end
                 end
-                
-                if checkpointCFrame and hrp and running then
-                    hrp.CFrame = checkpointCFrame
-                    task.wait(0.1)
-                end
-                
-                if camera then
-                    camera.CameraType = Enum.CameraType.Custom
-                end
             else
-                if isExploreMode then
-                    local safePos = getValidMapPosition()
-                    local char = LocalPlayer.Character
+                local targetPos = locations[currentLocationIndex]
+                local char = LocalPlayer.Character
+                
+                if targetPos and char and char:FindFirstChild("HumanoidRootPart") then
+                    StatusLabel.Text = "Status: Procurando em [" .. currentLocationIndex .. "/27]"
+                    char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+                    char.HumanoidRootPart.CFrame = CFrame.new(targetPos)
                     
-                    if safePos and char and char:FindFirstChild("HumanoidRootPart") then
-                        char.HumanoidRootPart.CFrame = CFrame.new(safePos)
-                        lastPosition = safePos
+                    currentLocationIndex = currentLocationIndex + 1
+                    if currentLocationIndex > #locations then
+                        currentLocationIndex = 1
                     end
-                    
-                    local timer = 0
-                    while running and timer < TERRAIN_TP_INTERVAL do
-                        if #getCandies() > 0 then
-                            break
-                        end
-                        task.wait(0.1)
-                        timer = timer + 0.1
-                    end
-                else
-                    task.wait(0.5)
+                end
+                
+                local timer = 0
+                while running and timer < mapTpWaitTime do
+                    if #getCandies() > 0 then break end
+                    task.wait(0.1)
+                    timer = timer + 0.1
                 end
             end
             task.wait(0.1)
         end
+        StatusLabel.Text = "Status: Parado"
     end)
 end
 
-StartBtn.MouseButton1Click:Connect(function()
-    startFarming()
-end)
-
-StopBtn.MouseButton1Click:Connect(function()
-    running = false
-    local camera = workspace.CurrentCamera
-    if camera then
-        camera.CameraType = Enum.CameraType.Custom
+ToggleBtn.MouseButton1Click:Connect(function()
+    running = not running
+    if running then
+        ToggleBtn.Text = "AUTO FARM: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        startFarming()
+    else
+        ToggleBtn.Text = "AUTO FARM: OFF"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
+        ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     end
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
     running = false
-    local camera = workspace.CurrentCamera
-    if camera then
-        camera.CameraType = Enum.CameraType.Custom
-    end
     ScreenGui:Destroy()
 end)
