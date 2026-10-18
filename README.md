@@ -81,6 +81,7 @@ local candiesCollected = 0
 local candyWaitTime = 0.5
 local mapTpWaitTime = 1.0
 local currentLocationIndex = 1
+local activeTimeSeconds = 0
 
 local pickupRemote = nil
 pcall(function()
@@ -110,8 +111,8 @@ setParent(ScreenGui)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 260, 0, 215)
-Frame.Position = UDim2.new(0.5, -130, 0.4, -107)
+Frame.Size = UDim2.new(0, 260, 0, 250)
+Frame.Position = UDim2.new(0.5, -130, 0.4, -125)
 Frame.BackgroundColor3 = Color3.fromRGB(22, 14, 32)
 Frame.BorderSizePixel = 0
 Frame.Active = true
@@ -164,7 +165,7 @@ CloseCorner.Parent = CloseBtn
 local CounterFrame = Instance.new("Frame")
 CounterFrame.Parent = Frame
 CounterFrame.Size = UDim2.new(0.9, 0, 0, 28)
-CounterFrame.Position = UDim2.new(0.05, 0, 0.19, 0)
+CounterFrame.Position = UDim2.new(0.05, 0, 0.16, 0)
 CounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
 CounterFrame.BorderSizePixel = 0
 
@@ -181,10 +182,30 @@ CounterText.TextColor3 = Color3.fromRGB(255, 200, 50)
 CounterText.TextSize = 12
 CounterText.Font = Enum.Font.GothamBold
 
+local TimerFrame = Instance.new("Frame")
+TimerFrame.Parent = Frame
+TimerFrame.Size = UDim2.new(0.9, 0, 0, 28)
+TimerFrame.Position = UDim2.new(0.05, 0, 0.29, 0)
+TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
+TimerFrame.BorderSizePixel = 0
+
+local TimerCorner = Instance.new("UICorner")
+TimerCorner.CornerRadius = UDim.new(0, 6)
+TimerCorner.Parent = TimerFrame
+
+local TimerText = Instance.new("TextLabel")
+TimerText.Parent = TimerFrame
+TimerText.Size = UDim2.new(1, 0, 1, 0)
+TimerText.BackgroundTransparency = 1
+TimerText.Text = "⏱️ Tempo Ativo: 00:00:00"
+TimerText.TextColor3 = Color3.fromRGB(255, 140, 0)
+TimerText.TextSize = 12
+TimerText.Font = Enum.Font.GothamBold
+
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Parent = Frame
 ToggleBtn.Size = UDim2.new(0.9, 0, 0, 32)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0.35, 0)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0.43, 0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
 ToggleBtn.Text = "AUTO FARM: OFF"
 ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -240,8 +261,8 @@ local function createInputGroup(parent, pos, labelText, defaultVal)
     return box
 end
 
-local CandyDelayBox = createInputGroup(Frame, UDim2.new(0.05, 0, 0.53, 0), "Delay Doce (s)", candyWaitTime)
-local MapDelayBox = createInputGroup(Frame, UDim2.new(0.53, 0, 0.53, 0), "Delay Mapa (s)", mapTpWaitTime)
+local CandyDelayBox = createInputGroup(Frame, UDim2.new(0.05, 0, 0.59, 0), "Delay Doce (s)", candyWaitTime)
+local MapDelayBox = createInputGroup(Frame, UDim2.new(0.53, 0, 0.59, 0), "Delay Mapa (s)", mapTpWaitTime)
 
 CandyDelayBox.FocusLost:Connect(function()
     local num = tonumber(CandyDelayBox.Text)
@@ -264,13 +285,30 @@ end)
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Frame
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0.05, 0, 0.86, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.88, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Parado"
 StatusLabel.TextColor3 = Color3.fromRGB(160, 140, 180)
 StatusLabel.TextSize = 10
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local function formatTime(seconds)
+    local hrs = math.floor(seconds / 3600)
+    local mins = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hrs, mins, secs)
+end
+
+task.spawn(function()
+    while true do
+        if running then
+            activeTimeSeconds = activeTimeSeconds + 1
+            TimerText.Text = "⏱️ Tempo Ativo: " .. formatTime(activeTimeSeconds)
+        end
+        task.wait(1)
+    end
+end)
 
 local function getCandies()
     local list = {}
