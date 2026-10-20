@@ -3,6 +3,7 @@ local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local env = (getgenv and getgenv()) or _G
@@ -10,15 +11,22 @@ local env = (getgenv and getgenv()) or _G
 if not env.AntiAFK_Loaded then
     env.AntiAFK_Loaded = true
 
-    local function antiAfkPulse()
+    local function advancedAntiAfk()
         pcall(function()
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Unknown, false, game)
             VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Unknown, false, game)
         end)
         
         pcall(function()
-            local position = UserInputService:GetMouseLocation()
-            VirtualInputManager:SendMouseMoveEvent(position.X, position.Y, game)
+            local screenSize = workspace.CurrentCamera.ViewportSize
+            VirtualInputManager:SendMouseMoveEvent(screenSize.X / 2 + math.random(-10, 10), screenSize.Y / 2 + math.random(-10, 10), game)
+        end)
+
+        pcall(function()
+            local camera = workspace.CurrentCamera
+            if camera then
+                camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(0.1), 0)
+            end
         end)
 
         local fire = env.firesignal or env.fireSignal
@@ -29,7 +37,7 @@ if not env.AntiAFK_Loaded then
 
     pcall(function()
         LocalPlayer.Idled:Connect(function()
-            antiAfkPulse()
+            advancedAntiAfk()
             pcall(function()
                 local VirtualUser = game:GetService("VirtualUser")
                 VirtualUser:CaptureController()
@@ -40,8 +48,8 @@ if not env.AntiAFK_Loaded then
 
     task.spawn(function()
         while true do
-            task.wait(60)
-            antiAfkPulse()
+            task.wait(45)
+            advancedAntiAfk()
         end
     end)
 end
@@ -77,11 +85,13 @@ local locations = {
 }
 
 local running = false
-local candiesCollected = 0
-local candyWaitTime = 0.5
+local itemsCollected = 0
+local itemWaitTime = 0.5
 local mapTpWaitTime = 1.0
 local currentLocationIndex = 1
 local activeTimeSeconds = 0
+local minimized = false
+local toggleKey = Enum.KeyCode.F8
 
 local pickupRemote = nil
 pcall(function()
@@ -89,7 +99,7 @@ pcall(function()
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarm_Carlao"
+ScreenGui.Name = "FarmCarlão_Ultimate"
 ScreenGui.ResetOnSpawn = false
 
 local function setParent(gui)
@@ -111,8 +121,8 @@ setParent(ScreenGui)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 260, 0, 250)
-Frame.Position = UDim2.new(0.5, -130, 0.4, -125)
+Frame.Size = UDim2.new(0, 260, 0, 295)
+Frame.Position = UDim2.new(0.5, -130, 0.4, -147)
 Frame.BackgroundColor3 = Color3.fromRGB(22, 14, 32)
 Frame.BorderSizePixel = 0
 Frame.Active = true
@@ -139,33 +149,53 @@ TopCorner.Parent = TopBar
 
 local Title = Instance.new("TextLabel")
 Title.Parent = TopBar
-Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Size = UDim2.new(1, -65, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🎃 Farm Candy Carlão 🎃"
+Title.Text = "🎃 Farm Carlão Ultimate 🎃"
 Title.TextColor3 = Color3.fromRGB(255, 140, 0)
-Title.TextSize = 13
+Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TopBar
-CloseBtn.Size = UDim2.new(0, 22, 0, 22)
-CloseBtn.Position = UDim2.new(1, -27, 0, 5)
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Position = UDim2.new(1, -25, 0, 6)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseBtn.Text = "×"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 14
+CloseBtn.TextSize = 13
 
 local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.CornerRadius = UDim.new(0, 4)
 CloseCorner.Parent = CloseBtn
 
+local MinBtn = Instance.new("TextButton")
+MinBtn.Parent = TopBar
+MinBtn.Size = UDim2.new(0, 20, 0, 20)
+MinBtn.Position = UDim2.new(1, -50, 0, 6)
+MinBtn.BackgroundColor3 = Color3.fromRGB(140, 90, 30)
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 13
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 4)
+MinCorner.Parent = MinBtn
+
+local Container = Instance.new("Frame")
+Container.Parent = Frame
+Container.Size = UDim2.new(1, 0, 1, -32)
+Container.Position = UDim2.new(0, 0, 0, 32)
+Container.BackgroundTransparency = 1
+
 local CounterFrame = Instance.new("Frame")
-CounterFrame.Parent = Frame
+CounterFrame.Parent = Container
 CounterFrame.Size = UDim2.new(0.9, 0, 0, 28)
-CounterFrame.Position = UDim2.new(0.05, 0, 0.16, 0)
+CounterFrame.Position = UDim2.new(0.05, 0, 0.04, 0)
 CounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
 CounterFrame.BorderSizePixel = 0
 
@@ -177,15 +207,15 @@ local CounterText = Instance.new("TextLabel")
 CounterText.Parent = CounterFrame
 CounterText.Size = UDim2.new(1, 0, 1, 0)
 CounterText.BackgroundTransparency = 1
-CounterText.Text = "🍬 Doces Coletados: 0"
+CounterText.Text = "🍬 Itens Coletados: 0"
 CounterText.TextColor3 = Color3.fromRGB(255, 200, 50)
 CounterText.TextSize = 12
 CounterText.Font = Enum.Font.GothamBold
 
 local TimerFrame = Instance.new("Frame")
-TimerFrame.Parent = Frame
+TimerFrame.Parent = Container
 TimerFrame.Size = UDim2.new(0.9, 0, 0, 28)
-TimerFrame.Position = UDim2.new(0.05, 0, 0.29, 0)
+TimerFrame.Position = UDim2.new(0.05, 0, 0.17, 0)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
 TimerFrame.BorderSizePixel = 0
 
@@ -203,9 +233,9 @@ TimerText.TextSize = 12
 TimerText.Font = Enum.Font.GothamBold
 
 local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Parent = Frame
+ToggleBtn.Parent = Container
 ToggleBtn.Size = UDim2.new(0.9, 0, 0, 32)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0.43, 0)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0.30, 0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
 ToggleBtn.Text = "AUTO FARM: OFF"
 ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -261,15 +291,15 @@ local function createInputGroup(parent, pos, labelText, defaultVal)
     return box
 end
 
-local CandyDelayBox = createInputGroup(Frame, UDim2.new(0.05, 0, 0.59, 0), "Delay Doce (s)", candyWaitTime)
-local MapDelayBox = createInputGroup(Frame, UDim2.new(0.53, 0, 0.59, 0), "Delay Mapa (s)", mapTpWaitTime)
+local ItemDelayBox = createInputGroup(Container, UDim2.new(0.05, 0, 0.44, 0), "Delay Item (s)", itemWaitTime)
+local MapDelayBox = createInputGroup(Container, UDim2.new(0.53, 0, 0.44, 0), "Delay Mapa (s)", mapTpWaitTime)
 
-CandyDelayBox.FocusLost:Connect(function()
-    local num = tonumber(CandyDelayBox.Text)
+ItemDelayBox.FocusLost:Connect(function()
+    local num = tonumber(ItemDelayBox.Text)
     if num and num >= 0 then
-        candyWaitTime = num
+        itemWaitTime = num
     else
-        CandyDelayBox.Text = tostring(candyWaitTime)
+        ItemDelayBox.Text = tostring(itemWaitTime)
     end
 end)
 
@@ -282,16 +312,89 @@ MapDelayBox.FocusLost:Connect(function()
     end
 end)
 
+-- Tecla para minimizar/ocultar
+local KeyBindContainer = Instance.new("Frame")
+KeyBindContainer.Parent = Container
+KeyBindContainer.Size = UDim2.new(0.9, 0, 0, 35)
+KeyBindContainer.Position = UDim2.new(0.05, 0, 0.62, 0)
+KeyBindContainer.BackgroundTransparency = 1
+
+local KeyBindLbl = Instance.new("TextLabel")
+KeyBindLbl.Parent = KeyBindContainer
+KeyBindLbl.Size = UDim2.new(0.6, 0, 1, 0)
+KeyBindLbl.BackgroundTransparency = 1
+KeyBindLbl.Text = "Tecla Minimizador:"
+KeyBindLbl.TextColor3 = Color3.fromRGB(180, 160, 200)
+KeyBindLbl.TextSize = 11
+KeyBindLbl.Font = Enum.Font.Gotham
+KeyBindLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local KeyBindBox = Instance.new("TextBox")
+KeyBindBox.Parent = KeyBindContainer
+KeyBindBox.Size = UDim2.new(0.35, 0, 1, 0)
+KeyBindBox.Position = UDim2.new(0.65, 0, 0, 0)
+KeyBindBox.BackgroundColor3 = Color3.fromRGB(30, 18, 42)
+KeyBindBox.Text = toggleKey.Name
+KeyBindBox.TextColor3 = Color3.fromRGB(255, 200, 50)
+KeyBindBox.Font = Enum.Font.GothamBold
+KeyBindBox.TextSize = 12
+KeyBindBox.ClearTextOnFocus = true
+
+local KeyBindCorner = Instance.new("UICorner")
+KeyBindCorner.CornerRadius = UDim.new(0, 6)
+KeyBindCorner.Parent = KeyBindBox
+
+local KeyBindStroke = Instance.new("UIStroke")
+KeyBindStroke.Parent = KeyBindBox
+KeyBindStroke.Color = Color3.fromRGB(100, 45, 140)
+KeyBindStroke.Thickness = 1
+
+KeyBindBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newKeyStr = string.upper(KeyBindBox.Text)
+        local success, keyCode = pcall(function()
+            return Enum.KeyCode[newKeyStr]
+        end)
+        if success and keyCode then
+            toggleKey = keyCode
+            KeyBindBox.Text = toggleKey.Name
+        else
+            KeyBindBox.Text = toggleKey.Name
+        end
+    end
+end)
+
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Parent = Frame
+StatusLabel.Parent = Container
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0.05, 0, 0.88, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.84, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Parado"
 StatusLabel.TextColor3 = Color3.fromRGB(160, 140, 180)
 StatusLabel.TextSize = 10
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local function toggleMinimize()
+    minimized = not minimized
+    if minimized then
+        Container.Visible = false
+        Frame.Size = UDim2.new(0, 260, 0, 32)
+        MinBtn.Text = "+"
+    else
+        Container.Visible = true
+        Frame.Size = UDim2.new(0, 260, 0, 295)
+        MinBtn.Text = "-"
+    end
+end
+
+MinBtn.MouseButton1Click:Connect(toggleMinimize)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == toggleKey then
+        toggleMinimize()
+    end
+end)
 
 local function formatTime(seconds)
     local hrs = math.floor(seconds / 3600)
@@ -310,22 +413,36 @@ task.spawn(function()
     end
 end)
 
-local function getCandies()
+local function getAllTargets()
     local list = {}
-    local targets = {
+    
+    local candyTargets = {
         workspace:FindFirstChild("HalloweenCandiesLocal"),
         workspace:FindFirstChild("CandysTemplate")
     }
-    
-    for _, parentObj in ipairs(targets) do
+    for _, parentObj in ipairs(candyTargets) do
         if parentObj then
             for _, item in ipairs(parentObj:GetDescendants()) do
                 if item:IsA("BasePart") or item:IsA("Model") then
-                    table.insert(list, item)
+                    table.insert(list, {type = "candy", obj = item})
                 end
             end
         end
     end
+    
+    local grimoireFolder = workspace:FindFirstChild("GrimoriosLocal")
+    if grimoireFolder then
+        for _, template in ipairs(grimoireFolder:GetChildren()) do
+            if template.Name == "GrimorioTemplate" then
+                for _, obj in ipairs(template:GetDescendants()) do
+                    if obj:IsA("MeshPart") and obj.Name == "Base" then
+                        table.insert(list, {type = "grimoire", obj = obj})
+                    end
+                end
+            end
+        end
+    end
+    
     return list
 end
 
@@ -347,45 +464,51 @@ local function isColectSuccessful(response)
     return false
 end
 
-local function collectCandy(candy)
+local function collectTarget(targetData)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     
     local hrp = char.HumanoidRootPart
+    local item = targetData.obj
     local targetCFrame
     
-    if candy:IsA("BasePart") then
-        targetCFrame = candy.CFrame
-    elseif candy:IsA("Model") then
-        targetCFrame = candy:GetPivot()
+    if item:IsA("BasePart") then
+        targetCFrame = item.CFrame
+    elseif item:IsA("Model") then
+        targetCFrame = item:GetPivot()
     end
     
     if targetCFrame then
         hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.CFrame = targetCFrame + Vector3.new(0, 0.2, 0)
+        hrp.CFrame = targetCFrame + Vector3.new(0, 1.5, 0)
         
-        local candyId = getCandyIdentifier(candy)
         local collectedSuccess = false
         
-        if pickupRemote and candyId then
-            pcall(function()
-                local res1 = pickupRemote:InvokeServer(candyId)
-                if isColectSuccessful(res1) then
-                    collectedSuccess = true
-                else
-                    local res2 = pickupRemote:InvokeServer(candy)
-                    if isColectSuccessful(res2) then
+        if targetData.type == "candy" then
+            local candyId = getCandyIdentifier(item)
+            if pickupRemote and candyId then
+                pcall(function()
+                    local res1 = pickupRemote:InvokeServer(candyId)
+                    if isColectSuccessful(res1) then
                         collectedSuccess = true
+                    else
+                        local res2 = pickupRemote:InvokeServer(item)
+                        if isColectSuccessful(res2) then
+                            collectedSuccess = true
+                        end
                     end
-                end
-            end)
+                end)
+            end
+        elseif targetData.type == "grimoire" then
+            collectedSuccess = true
         end
         
-        if not collectedSuccess and candy and candy.Parent then
-            hrp.CFrame = targetCFrame
+        if not collectedSuccess and item and item.Parent then
+            hrp.CFrame = targetCFrame + Vector3.new(0, 0.2, 0)
             hrp.AssemblyLinearVelocity = Vector3.zero
             task.wait(0.1)
-            if pickupRemote and candyId then
+            if targetData.type == "candy" and pickupRemote then
+                local candyId = getCandyIdentifier(item)
                 pcall(function()
                     local resRetry = pickupRemote:InvokeServer(candyId)
                     if isColectSuccessful(resRetry) then
@@ -395,11 +518,11 @@ local function collectCandy(candy)
             end
         end
         
-        task.wait(candyWaitTime)
+        task.wait(itemWaitTime)
         
-        if collectedSuccess or not (candy and candy.Parent) then
-            candiesCollected = candiesCollected + 1
-            CounterText.Text = "🍬 Doces Coletados: " .. candiesCollected
+        if collectedSuccess or not (item and item.Parent) then
+            itemsCollected = itemsCollected + 1
+            CounterText.Text = "🍬 Itens Coletados: " .. itemsCollected
         end
     end
 end
@@ -407,14 +530,14 @@ end
 local function startFarming()
     task.spawn(function()
         while running do
-            local candies = getCandies()
+            local targets = getAllTargets()
             
-            if #candies > 0 then
-                StatusLabel.Text = "Status: Coletando Doces (" .. #candies .. ")"
-                for _, candy in ipairs(candies) do
+            if #targets > 0 then
+                StatusLabel.Text = "Status: Coletando Itens (" .. #targets .. ")"
+                for _, targetData in ipairs(targets) do
                     if not running then break end
-                    if candy and candy.Parent then
-                        collectCandy(candy)
+                    if targetData.obj and targetData.obj.Parent then
+                        collectTarget(targetData)
                     end
                 end
             else
@@ -434,7 +557,7 @@ local function startFarming()
                 
                 local timer = 0
                 while running and timer < mapTpWaitTime do
-                    if #getCandies() > 0 then break end
+                    if #getAllTargets() > 0 then break end
                     task.wait(0.1)
                     timer = timer + 0.1
                 end
