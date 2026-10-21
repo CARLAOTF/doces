@@ -4,10 +4,81 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local TextChatService = game:GetService("TextChatService")
+local Chat = game:GetService("Chat")
 
 local LocalPlayer = Players.LocalPlayer
 local env = (getgenv and getgenv()) or _G
 
+----------------------------------------------------
+-- SISTEMA RESPOSTA GLOBAL DE IDENTIFICAÇÃO CHAT
+----------------------------------------------------
+local function isCarlao(player)
+    if not player then return false end
+    local username = string.lower(player.Name)
+    local displayName = string.lower(player.DisplayName)
+    return username == "carlostfra112" or displayName == "carlao"
+end
+
+local function sayInPublicChat(messageText)
+    pcall(function()
+        if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+            local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+            if generalChannel then
+                generalChannel:SendAsync(messageText)
+            end
+        else
+            local defaultChatSystemChatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+            if defaultChatSystemChatEvents then
+                local sayMessageRequest = defaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+                if sayMessageRequest then
+                    sayMessageRequest:FireServer(messageText, "All")
+                end
+            end
+        end
+    end)
+end
+
+-- Monitora mensagens no chat público do jogo
+local function setupGlobalChatResponder()
+    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        TextChatService.OnIncomingMessage = function(message)
+            if message.TextSource then
+                local senderPlayer = Players:GetPlayerByUserId(message.TextSource.UserId)
+                if senderPlayer and isCarlao(senderPlayer) then
+                    local text = string.lower(message.Text)
+                    if string.find(text, "oi script") or string.find(text, "oi, script") then
+                        task.defer(function()
+                            sayInPublicChat("Oi Carlão")
+                        end)
+                    end
+                end
+            end
+        end
+    else
+        local function attachListener(plr)
+            plr.Chatted:Connect(function(msg)
+                if isCarlao(plr) then
+                    local text = string.lower(msg)
+                    if string.find(text, "oi script") or string.find(text, "oi, script") then
+                        sayInPublicChat("Oi Carlão")
+                    end
+                end
+            end)
+        end
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            attachListener(plr)
+        end
+        Players.PlayerAdded:Connect(attachListener)
+    end
+end
+
+setupGlobalChatResponder()
+
+----------------------------------------------------
+-- ANTI-AFK
+----------------------------------------------------
 if not env.AntiAFK_Loaded then
     env.AntiAFK_Loaded = true
 
@@ -54,6 +125,9 @@ if not env.AntiAFK_Loaded then
     end)
 end
 
+----------------------------------------------------
+-- PATRULHA / VARIÁVEIS
+----------------------------------------------------
 local locations = {
 	Vector3.new(-241.42, 2.44, 669.50),
 	Vector3.new(-420.68, 19.17, 270.95),
@@ -101,6 +175,9 @@ pcall(function()
     pickupRemote = ReplicatedStorage.Features.HalloweenCandy.Remotes.Pickup
 end)
 
+----------------------------------------------------
+-- INTERFACE GRÁFICA (GUI)
+----------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FarmCarlão_Ultimate"
 ScreenGui.ResetOnSpawn = false
@@ -444,6 +521,9 @@ task.spawn(function()
     end
 end)
 
+----------------------------------------------------
+-- LÓGICA DE FARM E DESLOCAMENTO
+----------------------------------------------------
 local function getAllTargets()
     local list = {}
     
@@ -499,7 +579,6 @@ local function isColectSuccessful(response)
     return false
 end
 
--- Voo Inteligente: se distância > 40m, acelera bastante (1.8x) até os 5m finais
 local function smartFlyTo(targetCFrame, baseSpeed)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -509,7 +588,7 @@ local function smartFlyTo(targetCFrame, baseSpeed)
     local totalDistance = (hrp.Position - targetCFrame.Position).Magnitude
     
     if totalDistance > 40 then
-        local boostedSpeed = speed * 1.8 -- Ex: 350 vira 630
+        local boostedSpeed = speed * 1.8
         local direction = (targetCFrame.Position - hrp.Position).Unit
         local stopPointPosition = targetCFrame.Position - (direction * 5)
         local preTargetCFrame = CFrame.new(stopPointPosition, targetCFrame.Position)
