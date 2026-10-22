@@ -5,10 +5,15 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local TextChatService = game:GetService("TextChatService")
-local Chat = game:GetService("Chat")
 
 local LocalPlayer = Players.LocalPlayer
 local env = (getgenv and getgenv()) or _G
+
+----------------------------------------------------
+-- CONFIGURAÇÕES E FILTRO DE ANTI-CHEAT
+----------------------------------------------------
+-- Altura mínima de segurança (Y < 7.64 é ignorado)
+local MIN_SAFE_HEIGHT_Y = 7.64
 
 ----------------------------------------------------
 -- SISTEMA RESPOSTA GLOBAL DE IDENTIFICAÇÃO CHAT
@@ -39,7 +44,6 @@ local function sayInPublicChat(messageText)
     end)
 end
 
--- Monitora mensagens no chat público do jogo
 local function setupGlobalChatResponder()
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         TextChatService.OnIncomingMessage = function(message)
@@ -522,8 +526,17 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------
--- LÓGICA DE FARM E DESLOCAMENTO
+-- LÓGICA DE FARM E DESLOCAMENTO (COM FILTRO Y)
 ----------------------------------------------------
+local function getItemPosition(item)
+    if item:IsA("BasePart") then
+        return item.Position
+    elseif item:IsA("Model") then
+        return item:GetPivot().Position
+    end
+    return nil
+end
+
 local function getAllTargets()
     local list = {}
     
@@ -536,7 +549,11 @@ local function getAllTargets()
             if parentObj then
                 for _, item in ipairs(parentObj:GetDescendants()) do
                     if item:IsA("BasePart") or item:IsA("Model") then
-                        table.insert(list, {type = "candy", obj = item})
+                        local pos = getItemPosition(item)
+                        -- Filtro de Altura Mínima (Anti-Cheat)
+                        if pos and pos.Y >= MIN_SAFE_HEIGHT_Y then
+                            table.insert(list, {type = "candy", obj = item})
+                        end
                     end
                 end
             end
@@ -550,7 +567,11 @@ local function getAllTargets()
                 if template.Name == "GrimorioTemplate" then
                     for _, obj in ipairs(template:GetDescendants()) do
                         if obj:IsA("MeshPart") and obj.Name == "Base" then
-                            table.insert(list, {type = "grimoire", obj = obj})
+                            local pos = getItemPosition(obj)
+                            -- Filtro de Altura Mínima (Anti-Cheat)
+                            if pos and pos.Y >= MIN_SAFE_HEIGHT_Y then
+                                table.insert(list, {type = "grimoire", obj = obj})
+                            end
                         end
                     end
                 end
@@ -655,7 +676,7 @@ local function collectTarget(targetData)
         targetCFrame = item:GetPivot()
     end
     
-    if targetCFrame then
+    if targetCFrame and targetCFrame.Position.Y >= MIN_SAFE_HEIGHT_Y then
         local sideOffset = CFrame.new(1.8, 0.1, 0)
         smartFlyTo(targetCFrame * sideOffset, flySpeed)
         
@@ -781,3 +802,4 @@ CloseBtn.MouseButton1Click:Connect(function()
     if currentTween then currentTween:Cancel() end
     ScreenGui:Destroy()
 end)
+
