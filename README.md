@@ -10,10 +10,31 @@ local LocalPlayer = Players.LocalPlayer
 local env = (getgenv and getgenv()) or _G
 
 ----------------------------------------------------
--- CONFIGURAÇÕES E FILTRO DE ANTI-CHEAT
+-- VERIFICAÇÃO INTELIGENTE DE SOLO (RAYCASTING)
 ----------------------------------------------------
--- Altura mínima de segurança (Y < 7.64 é ignorado)
-local MIN_SAFE_HEIGHT_Y = 7.64
+local function isItemOnValidGround(position)
+    -- 1. Se estiver na altura 0 ou abaixo (debaixo da terra), descarta imediatamente
+    if not position or position.Y <= 0 then
+        return false
+    end
+    
+    -- 2. Lança um raio para baixo (até 10 metros) a partir do item para checar se há chão
+    local rayOrigin = position + Vector3.new(0, 1, 0)
+    local rayDirection = Vector3.new(0, -12, 0)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    -- Ignora o próprio personagem no raycast
+    if LocalPlayer.Character then
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    end
+    
+    local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+    
+    -- Retorna true apenas se houver uma superfície física sólida logo abaixo do doce
+    return rayResult ~= nil and rayResult.Instance and rayResult.Instance.CanCollide
+end
 
 ----------------------------------------------------
 -- SISTEMA RESPOSTA GLOBAL DE IDENTIFICAÇÃO CHAT
@@ -526,7 +547,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------
--- LÓGICA DE FARM E DESLOCAMENTO (COM FILTRO Y)
+-- LÓGICA DE FARM E DESLOCAMENTO (RAYCAST)
 ----------------------------------------------------
 local function getItemPosition(item)
     if item:IsA("BasePart") then
@@ -550,8 +571,8 @@ local function getAllTargets()
                 for _, item in ipairs(parentObj:GetDescendants()) do
                     if item:IsA("BasePart") or item:IsA("Model") then
                         local pos = getItemPosition(item)
-                        -- Filtro de Altura Mínima (Anti-Cheat)
-                        if pos and pos.Y >= MIN_SAFE_HEIGHT_Y then
+                        -- Filtra itens sem chão sólido ou debaixo da terra (Y <= 0)
+                        if pos and isItemOnValidGround(pos) then
                             table.insert(list, {type = "candy", obj = item})
                         end
                     end
@@ -568,8 +589,7 @@ local function getAllTargets()
                     for _, obj in ipairs(template:GetDescendants()) do
                         if obj:IsA("MeshPart") and obj.Name == "Base" then
                             local pos = getItemPosition(obj)
-                            -- Filtro de Altura Mínima (Anti-Cheat)
-                            if pos and pos.Y >= MIN_SAFE_HEIGHT_Y then
+                            if pos and isItemOnValidGround(pos) then
                                 table.insert(list, {type = "grimoire", obj = obj})
                             end
                         end
@@ -668,15 +688,10 @@ local function collectTarget(targetData)
     
     local hrp = char.HumanoidRootPart
     local item = targetData.obj
-    local targetCFrame
+    local pos = getItemPosition(item)
     
-    if item:IsA("BasePart") then
-        targetCFrame = item.CFrame
-    elseif item:IsA("Model") then
-        targetCFrame = item:GetPivot()
-    end
-    
-    if targetCFrame and targetCFrame.Position.Y >= MIN_SAFE_HEIGHT_Y then
+    if pos and isItemOnValidGround(pos) then
+        local targetCFrame = item:IsA("BasePart") and item.CFrame or item:GetPivot()
         local sideOffset = CFrame.new(1.8, 0.1, 0)
         smartFlyTo(targetCFrame * sideOffset, flySpeed)
         
@@ -802,4 +817,3 @@ CloseBtn.MouseButton1Click:Connect(function()
     if currentTween then currentTween:Cancel() end
     ScreenGui:Destroy()
 end)
-
