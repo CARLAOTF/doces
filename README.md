@@ -13,26 +13,21 @@ local env = (getgenv and getgenv()) or _G
 -- VERIFICAÇÃO INTELIGENTE DE SOLO (RAYCASTING)
 ----------------------------------------------------
 local function isItemOnValidGround(position)
-    -- 1. Se estiver na altura 0 ou abaixo (debaixo da terra), descarta imediatamente
     if not position or position.Y <= 0 then
         return false
     end
     
-    -- 2. Lança um raio para baixo (até 10 metros) a partir do item para checar se há chão
     local rayOrigin = position + Vector3.new(0, 1, 0)
     local rayDirection = Vector3.new(0, -12, 0)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     
-    -- Ignora o próprio personagem no raycast
     if LocalPlayer.Character then
         raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
     end
     
     local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-    
-    -- Retorna true apenas se houver uma superfície física sólida logo abaixo do doce
     return rayResult ~= nil and rayResult.Instance and rayResult.Instance.CanCollide
 end
 
@@ -185,7 +180,8 @@ local locations = {
 
 local farmCandy = false
 local farmGrimoire = false
-local itemsCollected = 0
+local candiesCollected = 0
+local grimoiresCollected = 0
 local itemWaitTime = 0.5
 local mapTpWaitTime = 1.0
 local flySpeed = 350
@@ -226,8 +222,8 @@ setParent(ScreenGui)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 260, 0, 335)
-Frame.Position = UDim2.new(0.5, -130, 0.4, -167)
+Frame.Size = UDim2.new(0, 260, 0, 365)
+Frame.Position = UDim2.new(0.5, -130, 0.4, -182)
 Frame.BackgroundColor3 = Color3.fromRGB(22, 14, 32)
 Frame.BorderSizePixel = 0
 Frame.Active = true
@@ -297,30 +293,50 @@ Container.Size = UDim2.new(1, 0, 1, -32)
 Container.Position = UDim2.new(0, 0, 0, 32)
 Container.BackgroundTransparency = 1
 
-local CounterFrame = Instance.new("Frame")
-CounterFrame.Parent = Container
-CounterFrame.Size = UDim2.new(0.9, 0, 0, 26)
-CounterFrame.Position = UDim2.new(0.05, 0, 0.03, 0)
-CounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
-CounterFrame.BorderSizePixel = 0
+local CandyCounterFrame = Instance.new("Frame")
+CandyCounterFrame.Parent = Container
+CandyCounterFrame.Size = UDim2.new(0.9, 0, 0, 24)
+CandyCounterFrame.Position = UDim2.new(0.05, 0, 0.02, 0)
+CandyCounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
+CandyCounterFrame.BorderSizePixel = 0
 
-local CounterCorner = Instance.new("UICorner")
-CounterCorner.CornerRadius = UDim.new(0, 6)
-CounterCorner.Parent = CounterFrame
+local CandyCounterCorner = Instance.new("UICorner")
+CandyCounterCorner.CornerRadius = UDim.new(0, 6)
+CandyCounterCorner.Parent = CandyCounterFrame
 
-local CounterText = Instance.new("TextLabel")
-CounterText.Parent = CounterFrame
-CounterText.Size = UDim2.new(1, 0, 1, 0)
-CounterText.BackgroundTransparency = 1
-CounterText.Text = "🍬 Itens Coletados: 0"
-CounterText.TextColor3 = Color3.fromRGB(255, 200, 50)
-CounterText.TextSize = 11
-CounterText.Font = Enum.Font.GothamBold
+local CandyCounterText = Instance.new("TextLabel")
+CandyCounterText.Parent = CandyCounterFrame
+CandyCounterText.Size = UDim2.new(1, 0, 1, 0)
+CandyCounterText.BackgroundTransparency = 1
+CandyCounterText.Text = "🍬 Doces Coletados: 0"
+CandyCounterText.TextColor3 = Color3.fromRGB(255, 200, 50)
+CandyCounterText.TextSize = 11
+CandyCounterText.Font = Enum.Font.GothamBold
+
+local GrimCounterFrame = Instance.new("Frame")
+GrimCounterFrame.Parent = Container
+GrimCounterFrame.Size = UDim2.new(0.9, 0, 0, 24)
+GrimCounterFrame.Position = UDim2.new(0.05, 0, 0.10, 0)
+GrimCounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
+GrimCounterFrame.BorderSizePixel = 0
+
+local GrimCounterCorner = Instance.new("UICorner")
+GrimCounterCorner.CornerRadius = UDim.new(0, 6)
+GrimCounterCorner.Parent = GrimCounterFrame
+
+local GrimCounterText = Instance.new("TextLabel")
+GrimCounterText.Parent = GrimCounterFrame
+GrimCounterText.Size = UDim2.new(1, 0, 1, 0)
+GrimCounterText.BackgroundTransparency = 1
+GrimCounterText.Text = "📜 Grimórios Coletados: 0"
+GrimCounterText.TextColor3 = Color3.fromRGB(150, 200, 255)
+GrimCounterText.TextSize = 11
+GrimCounterText.Font = Enum.Font.GothamBold
 
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Parent = Container
-TimerFrame.Size = UDim2.new(0.9, 0, 0, 26)
-TimerFrame.Position = UDim2.new(0.05, 0, 0.13, 0)
+TimerFrame.Size = UDim2.new(0.9, 0, 0, 24)
+TimerFrame.Position = UDim2.new(0.05, 0, 0.18, 0)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
 TimerFrame.BorderSizePixel = 0
 
@@ -339,8 +355,8 @@ TimerText.Font = Enum.Font.GothamBold
 
 local ToggleCandyBtn = Instance.new("TextButton")
 ToggleCandyBtn.Parent = Container
-ToggleCandyBtn.Size = UDim2.new(0.9, 0, 0, 28)
-ToggleCandyBtn.Position = UDim2.new(0.05, 0, 0.23, 0)
+ToggleCandyBtn.Size = UDim2.new(0.9, 0, 0, 26)
+ToggleCandyBtn.Position = UDim2.new(0.05, 0, 0.27, 0)
 ToggleCandyBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
 ToggleCandyBtn.Text = "FARM DOCES: OFF"
 ToggleCandyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -358,8 +374,8 @@ ToggleCandyStroke.Thickness = 1
 
 local ToggleGrimoireBtn = Instance.new("TextButton")
 ToggleGrimoireBtn.Parent = Container
-ToggleGrimoireBtn.Size = UDim2.new(0.9, 0, 0, 28)
-ToggleGrimoireBtn.Position = UDim2.new(0.05, 0, 0.34, 0)
+ToggleGrimoireBtn.Size = UDim2.new(0.9, 0, 0, 26)
+ToggleGrimoireBtn.Position = UDim2.new(0.05, 0, 0.36, 0)
 ToggleGrimoireBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
 ToggleGrimoireBtn.Text = "FARM GRIMÓRIOS: OFF"
 ToggleGrimoireBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -415,9 +431,9 @@ local function createInputGroup(parent, pos, size, labelText, defaultVal)
     return box
 end
 
-local ItemDelayBox = createInputGroup(Container, UDim2.new(0.05, 0, 0.46, 0), UDim2.new(0.28, 0, 0, 45), "Item (s)", itemWaitTime)
-local MapDelayBox  = createInputGroup(Container, UDim2.new(0.36, 0, 0.46, 0), UDim2.new(0.28, 0, 0, 45), "Mapa (s)", mapTpWaitTime)
-local FlySpeedBox  = createInputGroup(Container, UDim2.new(0.67, 0, 0.46, 0), UDim2.new(0.28, 0, 0, 45), "V", flySpeed)
+local ItemDelayBox = createInputGroup(Container, UDim2.new(0.05, 0, 0.47, 0), UDim2.new(0.28, 0, 0, 45), "Item (s)", itemWaitTime)
+local MapDelayBox  = createInputGroup(Container, UDim2.new(0.36, 0, 0.47, 0), UDim2.new(0.28, 0, 0, 45), "Mapa (s)", mapTpWaitTime)
+local FlySpeedBox  = createInputGroup(Container, UDim2.new(0.67, 0, 0.47, 0), UDim2.new(0.28, 0, 0, 45), "V", flySpeed)
 
 ItemDelayBox.FocusLost:Connect(function()
     local num = tonumber(ItemDelayBox.Text)
@@ -449,7 +465,7 @@ end)
 local KeyBindContainer = Instance.new("Frame")
 KeyBindContainer.Parent = Container
 KeyBindContainer.Size = UDim2.new(0.9, 0, 0, 30)
-KeyBindContainer.Position = UDim2.new(0.05, 0, 0.65, 0)
+KeyBindContainer.Position = UDim2.new(0.05, 0, 0.67, 0)
 KeyBindContainer.BackgroundTransparency = 1
 
 local KeyBindLbl = Instance.new("TextLabel")
@@ -500,7 +516,7 @@ end)
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Container
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0.05, 0, 0.85, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.86, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Parado"
 StatusLabel.TextColor3 = Color3.fromRGB(160, 140, 180)
@@ -516,7 +532,7 @@ local function toggleMinimize()
         MinBtn.Text = "+"
     else
         Container.Visible = true
-        Frame.Size = UDim2.new(0, 260, 0, 335)
+        Frame.Size = UDim2.new(0, 260, 0, 365)
         MinBtn.Text = "-"
     end
 end
@@ -547,7 +563,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------
--- LÓGICA DE FARM E DESLOCAMENTO (RAYCAST)
+-- LÓGICA DE MOVIMENTAÇÃO (TP vs VOO)
 ----------------------------------------------------
 local function getItemPosition(item)
     if item:IsA("BasePart") then
@@ -571,7 +587,6 @@ local function getAllTargets()
                 for _, item in ipairs(parentObj:GetDescendants()) do
                     if item:IsA("BasePart") or item:IsA("Model") then
                         local pos = getItemPosition(item)
-                        -- Filtra itens sem chão sólido ou debaixo da terra (Y <= 0)
                         if pos and isItemOnValidGround(pos) then
                             table.insert(list, {type = "candy", obj = item})
                         end
@@ -584,13 +599,17 @@ local function getAllTargets()
     if farmGrimoire then
         local grimoireFolder = workspace:FindFirstChild("GrimoriosLocal")
         if grimoireFolder then
-            for _, template in ipairs(grimoireFolder:GetChildren()) do
-                if template.Name == "GrimorioTemplate" then
-                    for _, obj in ipairs(template:GetDescendants()) do
-                        if obj:IsA("MeshPart") and obj.Name == "Base" then
-                            local pos = getItemPosition(obj)
-                            if pos and isItemOnValidGround(pos) then
-                                table.insert(list, {type = "grimoire", obj = obj})
+            for _, item in ipairs(grimoireFolder:GetChildren()) do
+                local pos = getItemPosition(item)
+                if pos and isItemOnValidGround(pos) then
+                    table.insert(list, {type = "grimoire", obj = item})
+                else
+                    for _, subItem in ipairs(item:GetDescendants()) do
+                        if subItem:IsA("BasePart") then
+                            local subPos = subItem.Position
+                            if subPos and isItemOnValidGround(subPos) then
+                                table.insert(list, {type = "grimoire", obj = subItem})
+                                break
                             end
                         end
                     end
@@ -620,6 +639,18 @@ local function isColectSuccessful(response)
     return false
 end
 
+-- Teleporte Direto e Instantâneo (GRIMÓRIOS)
+local function tpTo(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    if currentTween then currentTween:Cancel() end
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.CFrame = targetCFrame
+end
+
+-- Voo Inteligente com Aceleração (DOCES E PATRULHA)
 local function smartFlyTo(targetCFrame, baseSpeed)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -686,14 +717,20 @@ local function collectTarget(targetData)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     
-    local hrp = char.HumanoidRootPart
     local item = targetData.obj
     local pos = getItemPosition(item)
     
     if pos and isItemOnValidGround(pos) then
         local targetCFrame = item:IsA("BasePart") and item.CFrame or item:GetPivot()
         local sideOffset = CFrame.new(1.8, 0.1, 0)
-        smartFlyTo(targetCFrame * sideOffset, flySpeed)
+        local finalCFrame = targetCFrame * sideOffset
+        
+        -- Grimório = TP | Doce = Voo
+        if targetData.type == "grimoire" then
+            tpTo(finalCFrame)
+        else
+            smartFlyTo(finalCFrame, flySpeed)
+        end
         
         local collectedSuccess = false
         
@@ -725,17 +762,28 @@ local function collectTarget(targetData)
             task.wait(0.05)
         end
         
+        -- Mexidinha de segurança se o item não sumir imediatamente
         if item and item.Parent and not collectedSuccess then
             local nudgeOffset = CFrame.new(-1.8, -0.2, 0)
-            smartFlyTo(targetCFrame * nudgeOffset, flySpeed)
+            local nudgeCFrame = targetCFrame * nudgeOffset
+            if targetData.type == "grimoire" then
+                tpTo(nudgeCFrame)
+            else
+                smartFlyTo(nudgeCFrame, flySpeed)
+            end
             triggerPickup()
         end
         
         task.wait(itemWaitTime)
         
         if collectedSuccess or not (item and item.Parent) then
-            itemsCollected = itemsCollected + 1
-            CounterText.Text = "🍬 Itens Coletados: " .. itemsCollected
+            if targetData.type == "candy" then
+                candiesCollected = candiesCollected + 1
+                CandyCounterText.Text = "🍬 Doces Coletados: " .. candiesCollected
+            elseif targetData.type == "grimoire" then
+                grimoiresCollected = grimoiresCollected + 1
+                GrimCounterText.Text = "📜 Grimórios Coletados: " .. grimoiresCollected
+            end
         end
     end
 end
