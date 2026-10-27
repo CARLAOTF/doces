@@ -180,8 +180,7 @@ local locations = {
 
 local farmCandy = false
 local farmGrimoire = false
-local candiesCollected = 0
-local grimoiresCollected = 0
+local farmPotion = false
 local itemWaitTime = 0.5
 local mapTpWaitTime = 1.0
 local flySpeed = 350
@@ -190,6 +189,8 @@ local activeTimeSeconds = 0
 local minimized = false
 local toggleKey = Enum.KeyCode.F8
 local currentTween = nil
+
+local processedItems = {}
 
 local pickupRemote = nil
 pcall(function()
@@ -222,8 +223,8 @@ setParent(ScreenGui)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 260, 0, 365)
-Frame.Position = UDim2.new(0.5, -130, 0.4, -182)
+Frame.Size = UDim2.new(0, 260, 0, 315)
+Frame.Position = UDim2.new(0.5, -130, 0.4, -157)
 Frame.BackgroundColor3 = Color3.fromRGB(22, 14, 32)
 Frame.BorderSizePixel = 0
 Frame.Active = true
@@ -293,50 +294,10 @@ Container.Size = UDim2.new(1, 0, 1, -32)
 Container.Position = UDim2.new(0, 0, 0, 32)
 Container.BackgroundTransparency = 1
 
-local CandyCounterFrame = Instance.new("Frame")
-CandyCounterFrame.Parent = Container
-CandyCounterFrame.Size = UDim2.new(0.9, 0, 0, 24)
-CandyCounterFrame.Position = UDim2.new(0.05, 0, 0.02, 0)
-CandyCounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
-CandyCounterFrame.BorderSizePixel = 0
-
-local CandyCounterCorner = Instance.new("UICorner")
-CandyCounterCorner.CornerRadius = UDim.new(0, 6)
-CandyCounterCorner.Parent = CandyCounterFrame
-
-local CandyCounterText = Instance.new("TextLabel")
-CandyCounterText.Parent = CandyCounterFrame
-CandyCounterText.Size = UDim2.new(1, 0, 1, 0)
-CandyCounterText.BackgroundTransparency = 1
-CandyCounterText.Text = "🍬 Doces Coletados: 0"
-CandyCounterText.TextColor3 = Color3.fromRGB(255, 200, 50)
-CandyCounterText.TextSize = 11
-CandyCounterText.Font = Enum.Font.GothamBold
-
-local GrimCounterFrame = Instance.new("Frame")
-GrimCounterFrame.Parent = Container
-GrimCounterFrame.Size = UDim2.new(0.9, 0, 0, 24)
-GrimCounterFrame.Position = UDim2.new(0.05, 0, 0.10, 0)
-GrimCounterFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
-GrimCounterFrame.BorderSizePixel = 0
-
-local GrimCounterCorner = Instance.new("UICorner")
-GrimCounterCorner.CornerRadius = UDim.new(0, 6)
-GrimCounterCorner.Parent = GrimCounterFrame
-
-local GrimCounterText = Instance.new("TextLabel")
-GrimCounterText.Parent = GrimCounterFrame
-GrimCounterText.Size = UDim2.new(1, 0, 1, 0)
-GrimCounterText.BackgroundTransparency = 1
-GrimCounterText.Text = "📜 Grimórios Coletados: 0"
-GrimCounterText.TextColor3 = Color3.fromRGB(150, 200, 255)
-GrimCounterText.TextSize = 11
-GrimCounterText.Font = Enum.Font.GothamBold
-
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Parent = Container
 TimerFrame.Size = UDim2.new(0.9, 0, 0, 24)
-TimerFrame.Position = UDim2.new(0.05, 0, 0.18, 0)
+TimerFrame.Position = UDim2.new(0.05, 0, 0.03, 0)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
 TimerFrame.BorderSizePixel = 0
 
@@ -355,8 +316,8 @@ TimerText.Font = Enum.Font.GothamBold
 
 local ToggleCandyBtn = Instance.new("TextButton")
 ToggleCandyBtn.Parent = Container
-ToggleCandyBtn.Size = UDim2.new(0.9, 0, 0, 26)
-ToggleCandyBtn.Position = UDim2.new(0.05, 0, 0.27, 0)
+ToggleCandyBtn.Size = UDim2.new(0.9, 0, 0, 28)
+ToggleCandyBtn.Position = UDim2.new(0.05, 0, 0.14, 0)
 ToggleCandyBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
 ToggleCandyBtn.Text = "FARM DOCES: OFF"
 ToggleCandyBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -374,8 +335,8 @@ ToggleCandyStroke.Thickness = 1
 
 local ToggleGrimoireBtn = Instance.new("TextButton")
 ToggleGrimoireBtn.Parent = Container
-ToggleGrimoireBtn.Size = UDim2.new(0.9, 0, 0, 26)
-ToggleGrimoireBtn.Position = UDim2.new(0.05, 0, 0.36, 0)
+ToggleGrimoireBtn.Size = UDim2.new(0.9, 0, 0, 28)
+ToggleGrimoireBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
 ToggleGrimoireBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
 ToggleGrimoireBtn.Text = "FARM GRIMÓRIOS: OFF"
 ToggleGrimoireBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -390,6 +351,25 @@ local ToggleGrimoireStroke = Instance.new("UIStroke")
 ToggleGrimoireStroke.Parent = ToggleGrimoireBtn
 ToggleGrimoireStroke.Color = Color3.fromRGB(130, 60, 180)
 ToggleGrimoireStroke.Thickness = 1
+
+local TogglePotionBtn = Instance.new("TextButton")
+TogglePotionBtn.Parent = Container
+TogglePotionBtn.Size = UDim2.new(0.9, 0, 0, 28)
+TogglePotionBtn.Position = UDim2.new(0.05, 0, 0.36, 0)
+TogglePotionBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
+TogglePotionBtn.Text = "FARM POÇÕES: OFF"
+TogglePotionBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+TogglePotionBtn.Font = Enum.Font.GothamBold
+TogglePotionBtn.TextSize = 11
+
+local TogglePotionCorner = Instance.new("UICorner")
+TogglePotionCorner.CornerRadius = UDim.new(0, 6)
+TogglePotionCorner.Parent = TogglePotionBtn
+
+local TogglePotionStroke = Instance.new("UIStroke")
+TogglePotionStroke.Parent = TogglePotionBtn
+TogglePotionStroke.Color = Color3.fromRGB(130, 60, 180)
+TogglePotionStroke.Thickness = 1
 
 local function createInputGroup(parent, pos, size, labelText, defaultVal)
     local container = Instance.new("Frame")
@@ -431,41 +411,29 @@ local function createInputGroup(parent, pos, size, labelText, defaultVal)
     return box
 end
 
-local ItemDelayBox = createInputGroup(Container, UDim2.new(0.05, 0, 0.47, 0), UDim2.new(0.28, 0, 0, 45), "Item (s)", itemWaitTime)
-local MapDelayBox  = createInputGroup(Container, UDim2.new(0.36, 0, 0.47, 0), UDim2.new(0.28, 0, 0, 45), "Mapa (s)", mapTpWaitTime)
-local FlySpeedBox  = createInputGroup(Container, UDim2.new(0.67, 0, 0.47, 0), UDim2.new(0.28, 0, 0, 45), "V", flySpeed)
+local ItemDelayBox = createInputGroup(Container, UDim2.new(0.05, 0, 0.48, 0), UDim2.new(0.28, 0, 0, 45), "Item (s)", itemWaitTime)
+local MapDelayBox  = createInputGroup(Container, UDim2.new(0.36, 0, 0.48, 0), UDim2.new(0.28, 0, 0, 45), "Mapa (s)", mapTpWaitTime)
+local FlySpeedBox  = createInputGroup(Container, UDim2.new(0.67, 0, 0.48, 0), UDim2.new(0.28, 0, 0, 45), "V", flySpeed)
 
 ItemDelayBox.FocusLost:Connect(function()
     local num = tonumber(ItemDelayBox.Text)
-    if num and num >= 0 then
-        itemWaitTime = num
-    else
-        ItemDelayBox.Text = tostring(itemWaitTime)
-    end
+    if num and num >= 0 then itemWaitTime = num else ItemDelayBox.Text = tostring(itemWaitTime) end
 end)
 
 MapDelayBox.FocusLost:Connect(function()
     local num = tonumber(MapDelayBox.Text)
-    if num and num >= 0 then
-        mapTpWaitTime = num
-    else
-        MapDelayBox.Text = tostring(mapTpWaitTime)
-    end
+    if num and num >= 0 then mapTpWaitTime = num else MapDelayBox.Text = tostring(mapTpWaitTime) end
 end)
 
 FlySpeedBox.FocusLost:Connect(function()
     local num = tonumber(FlySpeedBox.Text)
-    if num and num > 0 then
-        flySpeed = num
-    else
-        FlySpeedBox.Text = tostring(flySpeed)
-    end
+    if num and num > 0 then flySpeed = num else FlySpeedBox.Text = tostring(flySpeed) end
 end)
 
 local KeyBindContainer = Instance.new("Frame")
 KeyBindContainer.Parent = Container
 KeyBindContainer.Size = UDim2.new(0.9, 0, 0, 30)
-KeyBindContainer.Position = UDim2.new(0.05, 0, 0.67, 0)
+KeyBindContainer.Position = UDim2.new(0.05, 0, 0.69, 0)
 KeyBindContainer.BackgroundTransparency = 1
 
 local KeyBindLbl = Instance.new("TextLabel")
@@ -501,15 +469,8 @@ KeyBindStroke.Thickness = 1
 KeyBindBox.FocusLost:Connect(function(enterPressed)
     if enterPressed then
         local newKeyStr = string.upper(KeyBindBox.Text)
-        local success, keyCode = pcall(function()
-            return Enum.KeyCode[newKeyStr]
-        end)
-        if success and keyCode then
-            toggleKey = keyCode
-            KeyBindBox.Text = toggleKey.Name
-        else
-            KeyBindBox.Text = toggleKey.Name
-        end
+        local success, keyCode = pcall(function() return Enum.KeyCode[newKeyStr] end)
+        if success and keyCode then toggleKey = keyCode KeyBindBox.Text = toggleKey.Name else KeyBindBox.Text = toggleKey.Name end
     end
 end)
 
@@ -532,17 +493,14 @@ local function toggleMinimize()
         MinBtn.Text = "+"
     else
         Container.Visible = true
-        Frame.Size = UDim2.new(0, 260, 0, 365)
+        Frame.Size = UDim2.new(0, 260, 0, 315)
         MinBtn.Text = "-"
     end
 end
 
 MinBtn.MouseButton1Click:Connect(toggleMinimize)
-
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == toggleKey then
-        toggleMinimize()
-    end
+    if not gameProcessed and input.KeyCode == toggleKey then toggleMinimize() end
 end)
 
 local function formatTime(seconds)
@@ -554,7 +512,7 @@ end
 
 task.spawn(function()
     while true do
-        if farmCandy or farmGrimoire then
+        if farmCandy or farmGrimoire or farmPotion then
             activeTimeSeconds = activeTimeSeconds + 1
             TimerText.Text = "⏱️ Tempo Ativo: " .. formatTime(activeTimeSeconds)
         end
@@ -563,7 +521,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------
--- LÓGICA DE MOVIMENTAÇÃO (TP vs VOO)
+-- BUSCA E COLETA DE ITENS
 ----------------------------------------------------
 local function getItemPosition(item)
     if item:IsA("BasePart") then
@@ -587,7 +545,7 @@ local function getAllTargets()
                 for _, item in ipairs(parentObj:GetDescendants()) do
                     if item:IsA("BasePart") or item:IsA("Model") then
                         local pos = getItemPosition(item)
-                        if pos and isItemOnValidGround(pos) then
+                        if pos and isItemOnValidGround(pos) and not processedItems[item] then
                             table.insert(list, {type = "candy", obj = item})
                         end
                     end
@@ -601,14 +559,36 @@ local function getAllTargets()
         if grimoireFolder then
             for _, item in ipairs(grimoireFolder:GetChildren()) do
                 local pos = getItemPosition(item)
-                if pos and isItemOnValidGround(pos) then
+                if pos and isItemOnValidGround(pos) and not processedItems[item] then
                     table.insert(list, {type = "grimoire", obj = item})
                 else
                     for _, subItem in ipairs(item:GetDescendants()) do
                         if subItem:IsA("BasePart") then
                             local subPos = subItem.Position
-                            if subPos and isItemOnValidGround(subPos) then
-                                table.insert(list, {type = "grimoire", obj = subItem})
+                            if subPos and isItemOnValidGround(subPos) and not processedItems[item] then
+                                table.insert(list, {type = "grimoire", obj = item})
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    if farmPotion then
+        local potionFolder = workspace:FindFirstChild("WerewolfPotionsLocal")
+        if potionFolder then
+            for _, item in ipairs(potionFolder:GetChildren()) do
+                local pos = getItemPosition(item)
+                if pos and isItemOnValidGround(pos) and not processedItems[item] then
+                    table.insert(list, {type = "potion", obj = item})
+                else
+                    for _, subItem in ipairs(item:GetDescendants()) do
+                        if subItem:IsA("BasePart") then
+                            local subPos = subItem.Position
+                            if subPos and isItemOnValidGround(subPos) and not processedItems[item] then
+                                table.insert(list, {type = "potion", obj = item})
                                 break
                             end
                         end
@@ -629,28 +609,36 @@ local function getCandyIdentifier(candy)
     return candy.Name
 end
 
-local function isColectSuccessful(response)
-    if type(response) == "table" then
-        if response.ok == true then return true end
-        if response[1] and type(response[1]) == "table" and response[1].ok == true then return true end
-    elseif response == true then
-        return true
-    end
-    return false
-end
-
--- Teleporte Direto e Instantâneo (GRIMÓRIOS)
-local function tpTo(targetCFrame)
+-- Teleporte em cima com Descida Rápida (Poções e Grimórios)
+local function swoopTpTo(targetCFrame)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
     
     if currentTween then currentTween:Cancel() end
     hrp.AssemblyLinearVelocity = Vector3.zero
-    hrp.CFrame = targetCFrame
+    hrp.Anchored = true
+    
+    local aboveCFrame = targetCFrame + Vector3.new(0, 6, 0)
+    hrp.CFrame = aboveCFrame
+    task.wait(0.02)
+    
+    local duration = 0.12
+    currentTween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+    currentTween:Play()
+    
+    local completed = false
+    local conn = currentTween.Completed:Connect(function() completed = true end)
+    local start = tick()
+    while not completed do
+        if tick() - start > 0.3 then break end
+        task.wait(0.02)
+    end
+    if conn then conn:Disconnect() end
+    hrp.Anchored = false
 end
 
--- Voo Inteligente com Aceleração (DOCES E PATRULHA)
+-- Voo Inteligente (Apenas para Doces e Patrulha)
 local function smartFlyTo(targetCFrame, baseSpeed)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -676,12 +664,10 @@ local function smartFlyTo(targetCFrame, baseSpeed)
         currentTween:Play()
         
         local completed1 = false
-        local conn1 = currentTween.Completed:Connect(function()
-            completed1 = true
-        end)
+        local conn1 = currentTween.Completed:Connect(function() completed1 = true end)
         
         local start1 = tick()
-        while not completed1 and (farmCandy or farmGrimoire) do
+        while not completed1 and (farmCandy or farmGrimoire or farmPotion) do
             if tick() - start1 > (duration1 + 0.2) then break end
             task.wait(0.05)
         end
@@ -699,12 +685,10 @@ local function smartFlyTo(targetCFrame, baseSpeed)
     currentTween:Play()
     
     local completed2 = false
-    local conn2 = currentTween.Completed:Connect(function()
-        completed2 = true
-    end)
+    local conn2 = currentTween.Completed:Connect(function() completed2 = true end)
     
     local start2 = tick()
-    while not completed2 and (farmCandy or farmGrimoire) do
+    while not completed2 and (farmCandy or farmGrimoire or farmPotion) do
         if tick() - start2 > (duration2 + 0.2) then break end
         task.wait(0.05)
     end
@@ -718,88 +702,48 @@ local function collectTarget(targetData)
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     
     local item = targetData.obj
-    local pos = getItemPosition(item)
+    if not item or not item.Parent then return end
     
+    local pos = getItemPosition(item)
     if pos and isItemOnValidGround(pos) then
+        processedItems[item] = true
+        
         local targetCFrame = item:IsA("BasePart") and item.CFrame or item:GetPivot()
-        local sideOffset = CFrame.new(1.8, 0.1, 0)
-        local finalCFrame = targetCFrame * sideOffset
         
-        -- Grimório = TP | Doce = Voo
-        if targetData.type == "grimoire" then
-            tpTo(finalCFrame)
+        -- Poção e Grimório = Teleporta em cima e desce rápido | Doce = Voo Inteligente
+        if targetData.type == "potion" or targetData.type == "grimoire" then
+            swoopTpTo(targetCFrame)
         else
-            smartFlyTo(finalCFrame, flySpeed)
+            local sideOffset = CFrame.new(1.8, 0.1, 0)
+            smartFlyTo(targetCFrame * sideOffset, flySpeed)
         end
         
-        local collectedSuccess = false
-        
-        local function triggerPickup()
-            if targetData.type == "candy" then
-                local candyId = getCandyIdentifier(item)
-                if pickupRemote and candyId then
-                    pcall(function()
-                        local res1 = pickupRemote:InvokeServer(candyId)
-                        if isColectSuccessful(res1) then
-                            collectedSuccess = true
-                        else
-                            local res2 = pickupRemote:InvokeServer(item)
-                            if isColectSuccessful(res2) then
-                                collectedSuccess = true
-                            end
-                        end
-                    end)
-                end
-            elseif targetData.type == "grimoire" then
-                collectedSuccess = true
+        if targetData.type == "candy" then
+            local candyId = getCandyIdentifier(item)
+            if pickupRemote and candyId then
+                pcall(function()
+                    pickupRemote:InvokeServer(candyId)
+                    pickupRemote:InvokeServer(item)
+                end)
             end
-        end
-
-        triggerPickup()
-        
-        local waitStart = tick()
-        while (tick() - waitStart < 0.5) and (item and item.Parent) and not collectedSuccess do
-            task.wait(0.05)
-        end
-        
-        -- Mexidinha de segurança se o item não sumir imediatamente
-        if item and item.Parent and not collectedSuccess then
-            local nudgeOffset = CFrame.new(-1.8, -0.2, 0)
-            local nudgeCFrame = targetCFrame * nudgeOffset
-            if targetData.type == "grimoire" then
-                tpTo(nudgeCFrame)
-            else
-                smartFlyTo(nudgeCFrame, flySpeed)
-            end
-            triggerPickup()
         end
         
         task.wait(itemWaitTime)
-        
-        if collectedSuccess or not (item and item.Parent) then
-            if targetData.type == "candy" then
-                candiesCollected = candiesCollected + 1
-                CandyCounterText.Text = "🍬 Doces Coletados: " .. candiesCollected
-            elseif targetData.type == "grimoire" then
-                grimoiresCollected = grimoiresCollected + 1
-                GrimCounterText.Text = "📜 Grimórios Coletados: " .. grimoiresCollected
-            end
-        end
     end
 end
 
 local farmLoopRunning = false
 local function checkLoop()
-    if (farmCandy or farmGrimoire) and not farmLoopRunning then
+    if (farmCandy or farmGrimoire or farmPotion) and not farmLoopRunning then
         farmLoopRunning = true
         task.spawn(function()
-            while (farmCandy or farmGrimoire) do
+            while (farmCandy or farmGrimoire or farmPotion) do
                 local targets = getAllTargets()
                 
                 if #targets > 0 then
                     StatusLabel.Text = "Status: Coletando Itens (" .. #targets .. ")"
                     for _, targetData in ipairs(targets) do
-                        if not (farmCandy or farmGrimoire) then break end
+                        if not (farmCandy or farmGrimoire or farmPotion) then break end
                         if targetData.obj and targetData.obj.Parent then
                             collectTarget(targetData)
                         end
@@ -811,13 +755,11 @@ local function checkLoop()
                         smartFlyTo(CFrame.new(targetPos + Vector3.new(0, 3, 0)), flySpeed)
                         
                         currentLocationIndex = currentLocationIndex + 1
-                        if currentLocationIndex > #locations then
-                            currentLocationIndex = 1
-                        end
+                        if currentLocationIndex > #locations then currentLocationIndex = 1 end
                     end
                     
                     local timer = 0
-                    while (farmCandy or farmGrimoire) and timer < mapTpWaitTime do
+                    while (farmCandy or farmGrimoire or farmPotion) and timer < mapTpWaitTime do
                         if #getAllTargets() > 0 then break end
                         task.wait(0.1)
                         timer = timer + 0.1
@@ -859,9 +801,25 @@ ToggleGrimoireBtn.MouseButton1Click:Connect(function()
     checkLoop()
 end)
 
+TogglePotionBtn.MouseButton1Click:Connect(function()
+    farmPotion = not farmPotion
+    if farmPotion then
+        TogglePotionBtn.Text = "FARM POÇÕES: ON"
+        TogglePotionBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        TogglePotionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    else
+        TogglePotionBtn.Text = "FARM POÇÕES: OFF"
+        TogglePotionBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 55)
+        TogglePotionBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    end
+    checkLoop()
+end)
+
 CloseBtn.MouseButton1Click:Connect(function()
     farmCandy = false
     farmGrimoire = false
+    farmPotion = false
     if currentTween then currentTween:Cancel() end
     ScreenGui:Destroy()
 end)
+
