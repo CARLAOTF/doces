@@ -609,8 +609,8 @@ local function getCandyIdentifier(candy)
     return candy.Name
 end
 
--- Teleporte em cima com Descida Rápida (Poções e Grimórios)
-local function swoopTpTo(targetCFrame)
+-- Teleporte em cima, cai no chão, fica parado no local exato esperando sumir por até 1 segundo
+local function swoopTpTo(targetCFrame, itemObj)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
@@ -619,10 +619,12 @@ local function swoopTpTo(targetCFrame)
     hrp.AssemblyLinearVelocity = Vector3.zero
     hrp.Anchored = true
     
+    -- Spawn / Teleporta em cima (6 studs)
     local aboveCFrame = targetCFrame + Vector3.new(0, 6, 0)
     hrp.CFrame = aboveCFrame
     task.wait(0.02)
     
+    -- Cai direto em cima da poção/grimório
     local duration = 0.12
     currentTween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
     currentTween:Play()
@@ -636,6 +638,12 @@ local function swoopTpTo(targetCFrame)
     end
     if conn then conn:Disconnect() end
     hrp.Anchored = false
+    
+    -- Fica parado exatamente em cima do item esperando sumir por até 1 segundo no máximo
+    local waitStart = tick()
+    while itemObj and itemObj.Parent and (tick() - waitStart < 1.0) do
+        task.wait(0.05)
+    end
 end
 
 -- Voo Inteligente (Apenas para Doces e Patrulha)
@@ -710,15 +718,14 @@ local function collectTarget(targetData)
         
         local targetCFrame = item:IsA("BasePart") and item.CFrame or item:GetPivot()
         
-        -- Poção e Grimório = Teleporta em cima e desce rápido | Doce = Voo Inteligente
+        -- Poções e Grimórios usam o TP em cima, caem no chão e ficam parados esperando sumir
         if targetData.type == "potion" or targetData.type == "grimoire" then
-            swoopTpTo(targetCFrame)
+            swoopTpTo(targetCFrame, item)
         else
+            -- Doces usam voo inteligente
             local sideOffset = CFrame.new(1.8, 0.1, 0)
             smartFlyTo(targetCFrame * sideOffset, flySpeed)
-        end
-        
-        if targetData.type == "candy" then
+            
             local candyId = getCandyIdentifier(item)
             if pickupRemote and candyId then
                 pcall(function()
@@ -822,4 +829,3 @@ CloseBtn.MouseButton1Click:Connect(function()
     if currentTween then currentTween:Cancel() end
     ScreenGui:Destroy()
 end)
-
